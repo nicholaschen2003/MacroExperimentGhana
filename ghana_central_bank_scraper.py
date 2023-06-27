@@ -40,8 +40,8 @@ time.sleep(20) # wait for page to load
 soup = BeautifulSoup(driver.page_source,"html.parser")
 table = soup.find("table", id="table_2")
 body = table.find("tbody")
-dates = []
-d = {"Bank of Ghana Composite Index of Economic Activity (Real Growth)  (%)" : [],
+d = {"Date" : [],
+     "Bank of Ghana Composite Index of Economic Activity (Real Growth)  (%)" : [],
      "Core Inflation (Adjusted for Energy & Utility) (%) Year-on-Year" : [],
      "Monetary Policy Rate (%)" : [],
      "Headline Inflation (%) Year-on-Year" : []}
@@ -49,12 +49,12 @@ for row in body.find_all("tr"):
     cells = row.find_all("td")
     for i in range(len(cells)-1, 1, -1):
         date = f"{i-1}/1/{cells[0].get_text()}"
-        if date not in dates:
-            dates.append(date)
+        if date not in d["Date"]:
+            d["Date"].append(date)
         d[cells[1].get_text()].append(cells[i].get_text())
 
 # replace missing values with none
-for i in range(len(dates)):
+for i in range(len(d["Date"])):
     if len(d["Bank of Ghana Composite Index of Economic Activity (Real Growth)  (%)"]) < i+1:
         d["Bank of Ghana Composite Index of Economic Activity (Real Growth)  (%)"].append(None)
     if len(d["Core Inflation (Adjusted for Energy & Utility) (%) Year-on-Year"]) < i+1:
@@ -65,5 +65,5 @@ for i in range(len(dates)):
         d["Monetary Policy Rate (%)"].append(None)
 
 df = pd.DataFrame.from_dict(d)
-df.index = dates
-df.to_csv("data.csv")
+
+df.to_csv("data.csv", index=False)
