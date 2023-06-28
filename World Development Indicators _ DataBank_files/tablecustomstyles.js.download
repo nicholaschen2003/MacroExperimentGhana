@@ -1,0 +1,1257 @@
+﻿///////////////////////////////////////////////////////////////////////////////
+//////////////////////// Variables ////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+var g_crnt_obj_type = null;
+var g_crnt_customid = null;
+var g_crnt_row = null;
+var g_crnt_cell = null;
+
+var g_crnt_hdr_span = null;
+var g_crnt_hdr_cell = null;
+
+var g_crnt_row_idx = -1;
+
+var g_custom_styles = null;
+var g_custom_rows = null;
+
+var g_gridname = 'grdTableView';
+var $g_grdmaintbl = null;
+var g_grdtbl = null;
+var g_grdtbl_hdr = null;
+
+var g_cols_total = 0;
+var g_cols_indent = 0;
+
+var g_dragstarted = false;
+var g_dragstartevent = null;
+var g_dragstartcell = null;
+var g_dragendevent = null;
+var g_dragendcell = null;
+
+var g_dragrowstartprev = -1;
+var g_dragrowendprev = -1;
+var g_dragcellstartprev = -1;
+var g_dragcellendprev = -1;
+
+var g_dragrows = [];
+var g_dragcells = [];
+
+
+function doGridMenuActionEx(s, e) {
+    if (g_crnt_row == null || g_crnt_obj_type == null) return false;
+
+    switch (e.item.name) {
+        case "insb":
+        case "insa":
+            doInsertRow(e.item.name);
+            break;
+        case "del":
+            doDeleteRow();
+            break;
+        case "style":
+            doChangeStyle(!($.inArray(g_crnt_cell, g_dragcells) >= 0 && g_dragcells.length > 1));
+            break;
+        case "reset":
+            doReset(!($.inArray(g_crnt_cell, g_dragcells) >= 0 && g_dragcells.length > 1));
+            break;
+        case "resetall":
+            doResetAll(false, true);
+            break;
+        case "remsort":
+            if (confirm('Can we clear the sort?')) {
+                //debugger;
+                grid.PerformCallback('REMSORT');
+            }
+            break;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/////////////////////// Init & Event Actions //////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+$(function () {
+    
+});
+
+function initCustomStyles() {
+    $('#cellstyle-tcolor').jPicker({
+        window: { expandable: true, liveUpdate: false },
+        color: { alphaSupport: true, active: new $.jPicker.Color({ hex: '000000' }) },
+        position: { x: 'center', y: 'center' }
+    });
+    $('#cellstyle-bgcolor').jPicker({
+        window: { expandable: true, liveUpdate: false },
+        color: { alphaSupport: true, active: new $.jPicker.Color({ hex: 'FFFFFF' }) },
+        position: { x: 'center', y: 'center' }
+    });
+
+    $("#dlgInsertRow").mousedown(function () { $("div.jPicker").hide(); });
+    $("#dlgInsertRow").bind('dialogclose', function () { $("div.jPicker").hide(); });
+}
+
+function initCustomizations() {
+    g_grdtbl = $("#" + getGridName() + "_DXMainTable");
+    g_grdtbl_hdr = $("#" + getGridName() + "_DXHeaderTable");
+    if (g_grdtbl_hdr.length == 0) g_grdtbl_hdr = g_grdtbl;
+
+    var indentcell = $('tr.dxgvDataRow_GridDefaultTheme:first', g_grdtbl).find('td.dxgvIndentCell').length;
+    if (indentcell > 0) {
+        $('tr', g_grdtbl).find('td:lt(' + indentcell + ')').css('width', '0px').css('padding-left', '0px').css('padding-right', '0px').css('border-right-width', '0px').css('background-color', 'transparent');
+        if (g_grdtbl_hdr != g_grdtbl) $('tr', g_grdtbl_hdr).find('td:lt(' + indentcell + ')').css('width', '0px').css('padding-left', '0px').css('padding-right', '0px').css('border-right-width', '0px');
+    }
+
+    g_cols_total = $('tr.dxgvDataRow_GridDefaultTheme:first td', g_grdtbl).length - ($("#" + getGridName() + "_DXFixedColumnsDiv").length > 0 ? 1 : 0);
+    g_cols_indent = $('tr.dxgvDataRow_GridDefaultTheme:first', g_grdtbl).find('td.dxgvIndentCell').length;
+
+    g_dragstarted = false;
+    $g_grdmaintbl = $('#' + getGridName());
+    $g_grdmaintbl.mousedown(function (e) {
+        if (e.button == 0) doMouseDown(e);
+    }).mousemove(function (e) {
+        if (e.button == 0 && g_dragstarted) doMouseMove(e);
+    }).mouseup(function (e) {
+        if (e.button == 0 && g_dragstarted) doMouseUp(e);
+    });
+
+    //to set the width of last column since it shows more width
+    //initially for the header row
+    var $lastcolumn = $('#' + getGridName() + '_DXHeadersRow0 td:last');
+    if ($lastcolumn.length > 0 && $lastcolumn.prop('id') == '' && $lastcolumn.prop('class') == 'dxgvTable_GridDefaultTheme') {
+        $lastcolumn = $('#' + getGridName() + '_DXHeadersRow0').parent().children('tr:first').find('td:last');
+        $lastcolumn.css('width', '0px');
+        //now for the data row and if the header and data are two different tables
+        if (g_grdtbl_hdr != g_grdtbl) {
+            $lastcolumn = $('#' + getGridName() + '_DXMainTable tr:first td:last');
+            $lastcolumn.css('width', '0px');
+        }
+        var $scrolldiv = $('#' + getGridName() + '_DXFixedColumnsContentDiv');
+        if ($scrolldiv.length > 0) $scrolldiv.width($('#' + getGridName() + '_DXMainTable').width());
+    }
+}
+
+function aspxDDPCustomContextMenu(objectType, index, e) {
+    var gv = aspxGetControlCollection().Get(getGridName());
+    if (gv) gv.RaiseContextMenu(objectType, index, e);
+
+    return false;
+}
+
+function showContextMenu(s, e) {
+    g_crnt_obj_type = null;
+    g_crnt_customid = null;
+    g_crnt_row = null;
+    g_crnt_cell = null;
+    g_crnt_hdr_span = null;
+    g_crnt_hdr_cell = null;
+    g_crnt_row_idx = -1;
+
+    if (e.objectType == "row" || e.objectType == "grouprow" || e.objectType == "customrow" || e.objectType == "header") {
+        if ($(($.browser.msie ? e.htmlEvent.srcElement : e.htmlEvent.target)).hasClass('dxgvIndentCell')) return;
+
+        var x = ASPxClientUtils.GetEventX(e.htmlEvent);
+        var y = ASPxClientUtils.GetEventY(e.htmlEvent);
+        //To avoid some unnecessary line in the popup menu
+        //the below styles are inherited from default.css and changing that cause existing style of the table
+        $("#pMenuGrid_DXMST_").css("border-top-width", "0px").css("border-bottom-width", "0px").find("tr td:nth-child(2)").css("border-bottom-width", "0px");
+
+        if (e.objectType == "header") {
+            g_crnt_row_idx = -1;
+
+            //start of 2012 upgrade
+            g_crnt_cell = ($.browser.msie ? e.htmlEvent.srcElement : e.htmlEvent.target);
+            if (g_crnt_cell.tagName.toUpperCase() == "SPAN") g_crnt_cell = $(g_crnt_cell).parent()[0];
+        
+            if ($(g_crnt_cell).hasClass('dxgvHeader_GridDefaultTheme') == false && g_crnt_cell.tagName.toUpperCase() == "TD")
+                g_crnt_cell = $(g_crnt_cell).parents('td').first()[0];
+            //end of 2012 upgrade
+
+            g_crnt_row = $(g_crnt_cell).parent()[0];
+            var spanelem = $(g_crnt_cell).find('span');
+            if (spanelem.length > 0) {
+                g_crnt_hdr_span = spanelem[0];
+                g_crnt_hdr_cell = $(g_crnt_hdr_span).parent()[0];
+                g_crnt_customid = $(g_crnt_hdr_span).attr('customid');
+            }
+        }
+        else if (e.objectType == "customrow") {
+            g_crnt_row_idx = e.index;
+            g_crnt_cell = ($.browser.msie ? e.htmlEvent.srcElement : e.htmlEvent.target);
+            if (g_crnt_cell.tagName.toUpperCase() == "DIV") g_crnt_cell = $(g_crnt_cell).parent()[0];
+            g_crnt_row = $(g_crnt_cell).parent()[0];
+            g_crnt_customid = $(g_crnt_cell).attr('customid');
+        }
+        else {
+            g_crnt_row_idx = e.index;
+            g_crnt_cell = ($.browser.msie ? e.htmlEvent.srcElement : e.htmlEvent.target);
+            g_crnt_row = $(g_crnt_cell).parent()[0];
+            g_crnt_customid = $(g_crnt_cell).attr('customid');
+        }
+        g_crnt_obj_type = e.objectType;
+        if (g_crnt_customid == null || g_crnt_customid == '' || g_crnt_customid == 'undefined') return;
+        if (g_crnt_customid.indexOf('G') == 0 || g_crnt_customid.indexOf('H') == 0) return;
+        
+        var bEnableAfter = true;
+        if (!isCustomRow()) {
+            var nextrowcustomid = $(g_crnt_row).next('tr').attr('customid');
+            if (nextrowcustomid == null && !isLastPage()) bEnableAfter = false;
+            if (nextrowcustomid != null && (nextrowcustomid.indexOf('G') == 0 || nextrowcustomid.indexOf('H') == 0)) bEnableAfter = false;
+        }
+        
+        var bEnableBefore = true;
+        var bEnableDelete = (e.objectType == "customrow");
+
+        if ($.inArray(g_crnt_cell, g_dragcells) >= 0 && g_dragcells.length > 1) {
+            bEnableAfter = false;
+            bEnableBefore = false;
+            bEnableDelete = false;
+        }
+        else {
+            unselectCells(true);
+        }
+
+        pMenuGrid.GetItem(0).SetEnabled(bEnableBefore);
+        pMenuGrid.GetItem(1).SetEnabled(bEnableAfter);
+        pMenuGrid.GetItem(2).SetEnabled(bEnableDelete);
+
+        //x -= $('#leftmainpanel').width();
+        //y -= ($('#bannerStrip').height() + $('.secondaryHeader').height() + $('.language').height());
+        var topheight = ($('#bannerStrip').height() + $('.secondaryHeader').height() + $('.language').height());
+        if ((y + $(pMenuGrid.mainElement).height()) > (getDisplayHeight() + topheight)) y = y - $(pMenuGrid.mainElement).height();
+        if ((x + $(pMenuGrid.mainElement).width()) > (getDisplayWidth() + $('#leftmainpanel').width())) x = x - $(pMenuGrid.mainElement).width();
+
+        pMenuGrid.ShowAtPos(x, y);
+    }
+}
+
+function doCustomizations(gridname) {
+    g_gridname = gridname;
+    initCustomizations();
+
+    //To maintain the height of the cells 
+    if (g_grdtbl != null && g_grdtbl.length > 0) {
+        $('tr', g_grdtbl).css('height', 'auto').children().css('height', 'auto');
+        $('tr:first', g_grdtbl).css('height', '0px').css('padding', '0px 2px 0px 2px').children().css('height', '0px').css('padding', '0px 2px 0px 2px');
+    }
+    if (g_grdtbl_hdr != null && g_grdtbl_hdr.length > 0) {
+        $('tr', g_grdtbl_hdr).css('height', 'auto').children().css('height', 'auto');
+        $('tr:first', g_grdtbl_hdr).css('height', '0px').css('padding', '0px 2px 0px 2px').children().css('height', '0px').css('padding', '0px 2px 0px 2px');
+    }
+
+    doInsertAllRows();
+    doChangeAllStyles();
+    
+    setTableScroll();
+
+    return true;
+}
+
+
+function doSetRowHeight(gridname) {
+    g_gridname = gridname;
+    initCustomizations();
+
+    //To maintain the height of the cells 
+    if (g_grdtbl != null && g_grdtbl.length > 0) {
+        $('tr', g_grdtbl).css('height', 'auto').children().css('height', 'auto');
+        $('tr:first', g_grdtbl).css('height', '0px').css('padding', '0px 2px 0px 2px').children().css('height', '0px').css('padding', '0px 2px 0px 2px');
+    }
+    if (g_grdtbl_hdr != null && g_grdtbl_hdr.length > 0) {
+        $('tr', g_grdtbl_hdr).css('height', 'auto').children().css('height', 'auto');
+        $('tr:first', g_grdtbl_hdr).css('height', '0px').css('padding', '0px 2px 0px 2px').children().css('height', '0px').css('padding', '0px 2px 0px 2px');
+    }
+
+    doChangeAllStyles();
+    
+    setTableScroll();
+
+    return true;
+}
+
+function doColumnSorting(s, e) {
+//currently enabling the styles even after sorting since the customid is unique for each cell which is based on the memberid
+//may need more testing
+//    if ($("#hdnTableFormatRows").val() != "" || $("#hdnTableFormatStyles").val() != "") {
+//        if (confirm('Sorting will clear all your customizations applied for the table. Proceed?')) {
+//            doResetAll(true, false);
+//            return true;
+//        }
+//        e.cancel = true;
+//        return false;
+//    }
+    if (event.srcElement.tagName.toLowerCase() == "img") e.cancel = true;
+    return true;
+}
+
+function doTableVerticalScroll() {
+    setTableScroll();
+
+    return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//////////////////////////// Mouse Events /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+function doMouseDown(e) {
+    if (e.target.tagName == 'TD') {
+        $g_grdmaintbl.css('cursor', 'crosshair');
+        //$g_grdmaintbl.disableSelection();
+        e.preventDefault()
+        g_dragstarted = true;
+        g_dragstartevent = e;
+        g_dragstartcell = ($.browser.msie ? e.srcElement : e.target);
+        g_dragendevent = null;
+        g_dragendcell = null;
+    }
+}
+
+function doMouseMove(e) {
+    if (g_dragstartcell == null || g_dragstartevent == null) {
+        resetMouseSettings();
+        return;
+    }
+    g_dragendevent = e;
+    g_dragendcell = ($.browser.msie ? e.srcElement : e.target);
+
+    selectCells();
+}
+
+function doMouseUp(e) {
+    g_dragstarted = false;
+    if (g_dragstartcell == null || g_dragstartevent == null) {
+        resetMouseSettings();
+        return;
+    }
+    g_dragendevent = e;
+    g_dragendcell = ($.browser.msie ? e.srcElement : e.target);
+
+    selectCells();
+
+    resetMouseSettings();
+}
+
+function selectCells() {
+    unselectCells(true);
+
+    var tblParent = $(g_dragstartcell).parent().parent();
+    var iStartRow = $(g_dragstartcell).parent()[0].sectionRowIndex;
+    var iEndRow = $(g_dragendcell).parent()[0].sectionRowIndex;
+    var iTmp = iStartRow;
+    if (iEndRow < iStartRow) {
+        iStartRow = iEndRow;
+        iEndRow = iTmp;
+    }
+    var iStartCell = g_dragstartcell.cellIndex;
+    var iEndCell = g_dragendcell.cellIndex;
+    iTmp = iStartCell;
+    if (iEndCell < iStartCell) {
+        iStartCell = iEndCell;
+        iEndCell = iTmp;
+    }
+    for (var iRow = iStartRow; iRow <= iEndRow; iRow++) {
+        var $row = $('tr:nth-child(' + (iRow + 1) + ')', tblParent);
+        if ($row.hasClass('dxgvGroupRow_GridDefaultTheme')) continue;
+        if ($row.attr('id') == null || $row.attr('id').indexOf(getGridName() + '_DXHeadersRow') >= 0) continue;
+        g_dragrows.push($row[0]);
+
+        for (var iCell = iStartCell; iCell <= iEndCell; iCell++) {
+            var $cell = $('td:nth-child(' + (iCell + 1) + ')', $row);
+
+            $cell.addClass('custom-cell-selection');
+            if ($cell.hasClass(("custstylebg" + $cell.attr('customid')).toLowerCase())) {
+                $cell.removeClass(("custstylebg" + $cell.attr('customid')).toLowerCase());
+                $cell.addClass(("custstylebgdis" + $cell.attr('customid')).toLowerCase());
+            }
+
+            g_dragcells.push($cell[0]);
+        }
+    }
+    g_dragrowstartprev = iStartRow;
+    g_dragrowendprev = iEndRow;
+    g_dragcellstartprev = iStartCell;
+    g_dragcellendprev = iEndCell;
+}
+
+function unselectCells(addcustomstyle) {
+    var tblParent = $(g_dragstartcell).parent().parent();
+
+    $(g_dragcells).each(function () {
+        var $cell = $(this, tblParent);
+
+        if ($cell.hasClass('custom-cell-selection')) $cell.removeClass('custom-cell-selection');
+        if ($cell.hasClass(("custstylebgdis" + $cell.attr('customid')).toLowerCase())) {
+            $cell.removeClass(("custstylebgdis" + $cell.attr('customid')).toLowerCase());
+            if (addcustomstyle) $cell.addClass(("custstylebg" + $cell.attr('customid')).toLowerCase());
+        }
+    });
+
+    g_dragrowstartprev = -1;
+    g_dragrowendprev = -1;
+    g_dragcellstartprev = -1;
+    g_dragcellendprev = -1;
+
+    g_dragrows = [];
+    g_dragcells = [];
+}
+
+function resetMouseSettings() {
+    $g_grdmaintbl.css('cursor', 'default');
+    //$g_grdmaintbl.enableSelection();
+    g_dragstarted = false;
+    g_dragstartevent = null;
+    g_dragstartcell = null;
+    g_dragendevent = null;
+    g_dragendcell = null;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////// Table Insert\Delete Row /////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+function doInsertRow(instype) {
+    $("#rowLabel").css("display", "");
+    $("#txtInsertText").val('');
+    $("#lstFonts").val('');
+    $("#lstFontSize").val('');
+    $("#lstFontStyle").val('');
+    $("#txtIndent").val('');
+    $("#txtHeight").val('');
+    $("#lstHAlign").val('');
+    $("#lstVAlign").val('');
+    $('#cellstyle-tcolor')[0].color.active.val('ahex', null);
+    $('#cellstyle-bgcolor')[0].color.active.val('ahex', null);
+
+    $("#dlgInsertRow").dialog({
+        minWidth: 550,
+        modal: true,
+        autoOpen: false,
+        hide: "fade",
+        title: "Insert Row",
+        buttons: {
+            'Insert Row': function () {
+                var strText = $("#txtInsertText").val();
+
+                if (strText == '') {
+                    strText = ' ';
+                    //alert('Please enter the text to display in the cell');
+                    //return false;
+                }
+                if ($("#txtIndent").val() != '') {
+                    if (!is_integer($("#txtIndent").val())) {
+                        alert('Enter a numeric value for Indent');
+                        return false;
+                    }
+                }
+                if ($("#txtHeight").val() != '') {
+                    if (!is_integer($("#txtHeight").val())) {
+                        alert('Enter a numeric value between 10 and 99 for Height.');
+                        return false;
+                    }
+                    if ($("#txtHeight").val() < 10 || $("#txtHeight").val() > 99) {
+                        alert('Enter a value between 10 and 99 for Height.');
+                        return false;
+                    }
+                }
+
+                var customrowid = '';
+                //will not get generated currently - Gn, Hn
+                //custom rows - RnSubn, D1Subn, D2Subn
+                //rest of the ids - RnCn, Rn, Cn, D1
+                if (isCustomRow()) {
+                    customrowid = g_crnt_customid.split('Sub')[0];
+                }
+                else {
+                    var currentcustomrowid = g_crnt_customid;
+                    if (insafter(instype)) currentcustomrowid = $(g_crnt_row).next('tr').attr('customid');
+
+                    if (currentcustomrowid == null && isLastRow(g_crnt_row, isCustomRow(), insafter(instype)))
+                        customrowid = 'D2';
+                    else if (currentcustomrowid != null && currentcustomrowid.indexOf('C') == 0)
+                        customrowid = 'D1';
+                    else if (currentcustomrowid != null && currentcustomrowid.indexOf('D1') == 0)
+                        customrowid = currentcustomrowid;
+                    else if (currentcustomrowid != null && currentcustomrowid.indexOf('R') == 0)
+                        customrowid = currentcustomrowid.split('C')[0];
+                }
+                if (customrowid == '') {
+                    alert('Insert row failed to generate new row!!!');
+                    return false;
+                }
+
+                //get the Sub id
+                var customrowsubid = 0;
+                customrowid += 'Sub';
+                var currentrowsforrow = (g_custom_rows == null ? null : $.grep(g_custom_rows, function (e) {
+                    if (e.rowid.indexOf(customrowid) == 0) {
+                        var subid = parseInt(e.rowid.replace(customrowid, ''));
+                        if (subid > customrowsubid) customrowsubid = subid;
+                    }
+
+                    return (e.rowid.indexOf(customrowid) == 0);
+                }));
+
+                //final row id
+                customrowid += (customrowsubid + 1);
+
+                //custom row index
+                var customrowindex = g_crnt_row_idx + 1;
+
+                if (g_custom_rows != null) {
+                    if (isCustomRow()) {
+                        var currentcustomrowid = getCustomRowID();
+                        var currentcustomrowdata = $.grep(currentrowsforrow, function (e) {
+                            return (e.rowid == currentcustomrowid);
+                        });
+                        if (currentcustomrowdata.length > 0) customrowindex = currentcustomrowdata[0].rowindex + (insbefore(instype) ? 0 : 1);
+                    }
+                    else {
+                        customrowindex += $.grep(g_custom_rows, function (e) {
+                            return (e.permrowindex <= (g_crnt_row_idx + (insbefore(instype) ? 0 : 1)));
+                        }).length;
+                    }
+                    for (var irow = 0; irow < g_custom_rows.length; irow++) {
+                        if (g_custom_rows[irow].rowindex >= customrowindex) {
+                            g_custom_rows[irow].rowindex++;
+                        }
+                    }
+                }
+
+                createCustomRowObject(true, customrowid, customrowindex, g_crnt_row_idx + 1);
+
+                var strTableRow = '';
+
+                if (customrowid.indexOf('D1') == 0)
+                    strTableRow = '<tr id="' + customrowid + '" customid="' + customrowid + '" class="dxgvCustomRow_GridDefaultTheme" oncontextmenu="aspxDDPCustomContextMenu(\'customrow\',' + g_crnt_row_idx + ',event); return false;" style="font-weight:bold;"><td class="dxgv" style="white-space: normal;" colspan="' + g_cols_total + '" id="cell_' + customrowid + '" customid="' + customrowid + '"><div>' + strText + '</div></td></tr>';
+                else
+                    strTableRow = '<tr id="' + customrowid + '" customid="' + customrowid + '" class="dxgvCustomRow_GridDefaultTheme" oncontextmenu="aspxDDPCustomContextMenu(\'customrow\',' + g_crnt_row_idx + ',event); return false;" style="font-weight:bold;"><td class="dxgv" style="white-space: normal;" colspan="' + g_cols_total + '" id="cell_' + customrowid + '" customid="' + customrowid + '">' + strText + '</td></tr>';
+
+                if (insbefore(instype))
+                    $(g_crnt_row).before(strTableRow);
+                else
+                    $(g_crnt_row).after(strTableRow);
+
+                createCellStyleObject(true, customrowid, strText, $("#lstFonts").val(), $("#lstFontSize").val(), $("#lstFontStyle").val(), $("#txtIndent").val(), $("#txtHeight").val(), $("#lstHAlign").val(), $("#lstVAlign").val(), $('#cellstyle-tcolor')[0].color.active.val('hex'), $('#cellstyle-bgcolor')[0].color.active.val('hex'));
+                setCellStyle(customrowid, $("#" + customrowid + " td").first(), null);
+
+                setTableScroll();
+
+                $(this).dialog("close");
+            },
+            Cancel: function () {
+                $(this).dialog("close");
+            }
+        }
+    });
+    $("#dlgInsertRow").dialog("open");
+}
+
+function doInsertAllRows() {
+    createCustomRowObjects();
+    if (g_custom_rows == null || g_custom_rows.length <= 0) return true;
+    var tablecustomrowssort = g_custom_rows.sort(function (o1, o2) { return o1.rowindex - o2.rowindex; });
+    for (var irow = 0; irow < tablecustomrowssort.length; irow++) {
+        var gridRow = $('#' + tablecustomrowssort[irow].rowid, g_grdtbl);
+        if (gridRow.length > 0) continue;
+
+        var gridPermRow = null;
+        var insafter = false;
+        if (tablecustomrowssort[irow].rowid.indexOf('D1') == 0)
+            gridPermRow = $("#" + getGridName() + "_DXHeadersRow0", g_grdtbl_hdr);
+        else if (tablecustomrowssort[irow].rowid.indexOf('D2') == 0 && isLastPage()) {
+            gridPermRow = $(g_grdtbl).find('tr').last();
+            insafter = true;
+        }
+        else {
+            gridPermRow = $("tr[customid='" + tablecustomrowssort[irow].rowid.split('Sub')[0] + "']", g_grdtbl);
+            if (gridPermRow.length <= 0) gridPermRow = $("td[customid='" + tablecustomrowssort[irow].rowid.split('Sub')[0] + "']", g_grdtbl).parent();
+        }
+        
+        if (gridPermRow.length > 0) {
+            var strText = '..';
+            var strTableRow = '';
+
+            if (tablecustomrowssort[irow].rowid.indexOf('D1') == 0)
+                strTableRow = '<tr id="' + tablecustomrowssort[irow].rowid + '" customid="' + tablecustomrowssort[irow].rowid + '" class="dxgvCustomRow_GridDefaultTheme" oncontextmenu="aspxDDPCustomContextMenu(\'customrow\',' + (g_custom_rows[irow].permrowindex - 1) + ',event); return false;" style="font-weight:bold;"><td class="dxgv" style="white-space: normal;" id="cell_' + tablecustomrowssort[irow].rowid + '" customid="' + tablecustomrowssort[irow].rowid + '" colspan="' + g_cols_total + '"><div>' + strText + '</div></td></tr>';
+            else
+                strTableRow = '<tr id="' + tablecustomrowssort[irow].rowid + '" customid="' + tablecustomrowssort[irow].rowid + '" class="dxgvCustomRow_GridDefaultTheme" oncontextmenu="aspxDDPCustomContextMenu(\'customrow\',' + (g_custom_rows[irow].permrowindex - 1) + ',event); return false;" style="font-weight:bold;"><td class="dxgv" style="white-space: normal;" id="cell_' + tablecustomrowssort[irow].rowid + '" customid="' + tablecustomrowssort[irow].rowid + '" colspan="' + g_cols_total + '">' + strText + '</td></tr>';
+            
+            if (insafter)
+                $(gridPermRow[0]).after(strTableRow);
+            else
+                $(gridPermRow[0]).before(strTableRow);
+        }
+    }
+
+    return true;
+}
+
+function doDeleteRow() {
+    if (isCustomRow()) {
+        var deleterow = $.grep(g_custom_rows, function (e) {
+            return (e.rowid == getCustomRowID());
+        })[0];
+        g_custom_rows = $.grep(g_custom_rows, function (e) {
+            return (e.rowid != deleterow.rowid);
+        });
+        for (var irow = 0; irow < g_custom_rows.length; irow++) {
+            if (g_custom_rows[irow].rowindex > deleterow.rowindex) {
+                g_custom_rows[irow].rowindex--;
+            }
+        }
+        g_custom_styles = $.grep(g_custom_styles, function (e) {
+            return (e.rowid != deleterow.rowid);
+        });
+        $(g_crnt_row).remove();
+
+        resetCustomRowTags();
+        resetCellStyleTags();
+
+        resizeTable();
+        setTableScroll();
+    }
+    else {
+        alert('Permanent rows can\'t be deleted. Only the rows which are inserted by the user can be deleted.');
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+////////////////////////Table Styles //////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+function doChangeStyle(singlecell) {
+    $("#txtInsertText").val('');
+    $("#lstFonts").val('');
+    $("#lstFontSize").val('');
+    $("#lstFontStyle").val('');
+    $("#txtIndent").val('');
+    $("#txtHeight").val('');
+    $("#lstHAlign").val('');
+    $("#lstVAlign").val('');
+    $('#cellstyle-tcolor')[0].color.active.val('ahex', null);
+    $('#cellstyle-bgcolor')[0].color.active.val('ahex', null);
+
+    var $targetCell = $(g_crnt_cell);
+    if (singlecell && (isRowHeader() || isCustomRow() || isGroupRow())) {
+        $("#rowLabel").css("display", "");
+        $("#txtInsertText").val($('td', g_crnt_row).not('.dxgvIndentCell').first().text());
+    }
+    else if (singlecell && isColHeader()) {
+        $targetCell = $(g_crnt_hdr_cell);
+        $("#rowLabel").css("display", "");
+        var strText = $(g_crnt_hdr_span).text();
+        strText = $.trim(strText);
+        $("#txtInsertText").val(strText);
+    }
+    else {
+        $("#rowLabel").css("display", "none");
+    }
+
+    if (singlecell) {
+        var cellstyle = null;
+        if (g_custom_styles != null) {
+            cellstyle = $.grep(g_custom_styles, function (e) {
+                return (e.rowid == g_crnt_customid);
+            });
+        }
+        if (cellstyle != null && cellstyle.length > 0) {
+            cellstyle = cellstyle[0];
+            if (cellstyle.font != null && cellstyle.font != '') $("#lstFonts").val(cellstyle.font.toLowerCase());
+            if (cellstyle.size != null && cellstyle.size != '') $("#lstFontSize").val(cellstyle.size);
+            if (cellstyle.style != null && cellstyle.style != '') $("#lstFontStyle").val(cellstyle.style.toLowerCase());
+            if (cellstyle.indent != null && cellstyle.indent != '') $("#txtIndent").val(cellstyle.indent);
+            if (cellstyle.height != null && cellstyle.height != '') $("#txtHeight").val(cellstyle.height);
+            if (cellstyle.align != null && cellstyle.align != '') $("#lstHAlign").val(cellstyle.align.toLowerCase());
+            if (cellstyle.valign != null && cellstyle.valign != '') $("#lstVAlign").val(cellstyle.valign.toLowerCase());
+            if (cellstyle.color != null && cellstyle.color != '') $('#cellstyle-tcolor')[0].color.active.val('hex', cellstyle.color);
+            if (cellstyle.bgColor != null && cellstyle.bgColor != '') $('#cellstyle-bgcolor')[0].color.active.val('hex', cellstyle.bgColor);
+        }
+    }
+    else {
+        //temporarly commented - need to find a logic to read all props and set the values if everything same
+        /*var cellstyle = null;
+        if (g_custom_styles != null) {
+            cellstyle = $.grep(g_custom_styles, function (e) {
+                return (e.rowid == g_crnt_customid);
+            });
+        }
+        if (cellstyle != null && cellstyle.length > 0) {
+            $('#cellstyle-tcolor')[0].color.active.val('hex', cellstyle[0].color);
+            $('#cellstyle-bgcolor')[0].color.active.val('hex', cellstyle[0].bgColor);
+        }
+        else {
+            $('#cellstyle-tcolor')[0].color.active.val('hex', "#444444");
+            $('#cellstyle-bgcolor')[0].color.active.val('hex', ($targetCell.hasClass('even') ? "#EEEFE9" : "#FFFFFF"));
+        }*/
+    }
+
+    $("#dlgInsertRow").dialog({
+        minWidth: 550,
+        modal: true,
+        autoOpen: false,
+        hide: "fade",
+        title: "Change Cell Style",
+        buttons: {
+            'Apply': function () {
+                var strText = '';
+
+                if ($("#txtIndent").val() != '') {
+                    if (!is_integer($("#txtIndent").val())) {
+                        alert('Enter a numeric value for Indent.');
+                        return false;
+                    }
+                }
+                if ($("#txtHeight").val() != '') {
+                    if (!is_integer($("#txtHeight").val())) {
+                        alert('Enter a numeric value for Height.');
+                        return false;
+                    }
+                    if ($("#txtHeight").val() < 10 || $("#txtHeight").val() > 99) {
+                        alert('Enter a numeric value between 10 and 99 for Height.');
+                        return false;
+                    }
+                }
+
+                if (singlecell && (isRowHeader() || isColHeader() || isCustomRow() || isGroupRow())) {
+                    strText = $("#txtInsertText").val();
+                    strText = strText.replace(/  /g, '&nbsp;&nbsp;');
+                    if (strText == '') {
+                        strText = ' ';
+                        //alert('Please enter the text to display in the cell');
+                        //return false;
+                    }
+                    if (isColHeader())
+                        $(g_crnt_hdr_span).text(strText);
+                    else
+                        $targetCell.text(strText);
+                }
+
+                if (singlecell) {
+                    createCellStyleObject(true, g_crnt_customid, strText, $("#lstFonts").val(), $("#lstFontSize").val(), $("#lstFontStyle").val(), $("#txtIndent").val(), $("#txtHeight").val(), $("#lstHAlign").val(), $("#lstVAlign").val(), $('#cellstyle-tcolor')[0].color.active.val('hex'), $('#cellstyle-bgcolor')[0].color.active.val('hex'));
+                    setCellStyle(g_crnt_customid, g_crnt_cell, g_crnt_hdr_cell);
+                }
+                else {
+                    var font = $("#lstFonts").val();
+                    var fontsize = $("#lstFontSize").val();
+                    var fontstyle = $("#lstFontStyle").val();
+                    var indent = $("#txtIndent").val();
+                    var height = $("#txtHeight").val();
+                    var align = $("#lstHAlign").val();
+                    var valign = $("#lstVAlign").val();
+                    var textcolor = $('#cellstyle-tcolor')[0].color.active.val('hex');
+                    var backcolor = $('#cellstyle-bgcolor')[0].color.active.val('hex');
+                    $(g_dragcells).each(function () {
+                        var cellid = $(this).attr('customid');
+                        if (cellid == null || cellid == '') return;
+
+                        createCellStyleObject(false, cellid, '', font, fontsize, fontstyle, indent, height, align, valign, textcolor, backcolor);
+                        setCellStyle(cellid, this, null);
+                    });
+                    resetCellStyleTags();
+                    unselectCells(true);
+                }
+
+                $(this).dialog("close");
+            },
+            Cancel: function () {
+                $(this).dialog("close");
+            }
+        }
+    });
+    $("#dlgInsertRow").dialog("open");
+}
+
+function doChangeAllStyles() {
+    var gridRow = null;
+    
+    createCellStyleObjects();
+    if (g_custom_styles == null || g_custom_styles.length <= 0) return true;
+
+    for (var irow = 0; irow < g_custom_styles.length; irow++) {
+        var gridCell = null;
+        var headercell = null;
+
+        if (g_custom_styles[irow].rowid == 'D1' || g_custom_styles[irow].rowid.indexOf('C') == 0) {
+            headercell = $('span[customid="' + g_custom_styles[irow].rowid + '"]', g_grdtbl_hdr).parent();
+            gridCell = $(headercell).parents('td:first');
+        }
+        else if (g_custom_styles[irow].rowid.indexOf('D1') == 0) {
+            gridCell = $('td[customid="' + g_custom_styles[irow].rowid + '"]', g_grdtbl_hdr);
+        }
+        else {
+            gridCell = $('td[customid="' + g_custom_styles[irow].rowid + '"]', g_grdtbl);
+        }
+
+        setCellStyle(g_custom_styles[irow].rowid, gridCell, headercell);
+    }
+
+    return true;
+}
+
+function doReset(singlecell) {
+    if (g_custom_styles == null) return;
+
+    var isCallBackNeeded = false;
+    if (singlecell) {
+        resetCellStyle(g_crnt_customid, g_crnt_cell);
+
+        //This case callback is required since the text is getting changed for the row header
+        if (isRowHeader() || isColHeader() || isGroupRow()) isCallBackNeeded = true;
+    }
+    else {
+        $(g_dragcells).each(function () {
+            var cellid = $(this).attr('customid');
+            if (cellid == null || cellid == '') return;
+
+            if (isCallBackNeeded)
+                resetCellStyle(cellid, this);
+            else
+                isCallBackNeeded = resetCellStyle(cellid, this);
+        });
+
+        unselectCells(false);
+    }
+    resetCellStyleTags();
+
+    if (isCallBackNeeded) grid.PerformCallback();
+}
+
+function setCellStyle(cellid, tablecell, headercell) {
+    var cellstyle = $.grep(g_custom_styles, function (e) {
+        return (e.rowid == cellid);
+    });
+    if (cellstyle.length == 0) return false;
+    cellstyle = cellstyle[0];
+
+    var styleid = ("custstyle" + cellid).toLowerCase();
+    var stylebgcid = ("custstylebg" + cellid).toLowerCase();
+    var customstylesheet = remCellStyleClass(styleid, stylebgcid);
+    
+    var stylename = "." + styleid;
+    var styledata = "{";
+    if (cellstyle.font != null && cellstyle.font != '') styledata += "font-family: " + cellstyle.font.replace(/\ /g, "-") + " !important;";
+    if (cellstyle.size != null && cellstyle.size != '') styledata += "font-size: " + cellstyle.size + "px !important;";
+    if (cellstyle.style != null && cellstyle.style != '') styledata += "font-weight: " + (cellstyle.style.toLowerCase().indexOf('bold') >= 0 ? "bold" : "normal") + " !important;";
+    if (cellstyle.style != null && cellstyle.style != '') styledata += "font-style: " + (cellstyle.style.toLowerCase().indexOf('italic') >= 0 ? "italic" : "normal") + " !important;";
+    if (cellstyle.indent != null && cellstyle.indent != '') styledata += "padding-left: " + cellstyle.indent + "px !important;";
+    if (cellstyle.align != null && cellstyle.align != '') styledata += "text-align: " + cellstyle.align + " !important;";
+    if (cellstyle.valign != null && cellstyle.valign != '') styledata += "vertical-align: " + cellstyle.valign + " !important;";
+    styledata += "}";
+
+    var stylebgname = "." + stylebgcid;
+    var stylebgdata = "{";
+    if (cellstyle.color != null && cellstyle.color != '') stylebgdata += "color: " + cellstyle.color + " !important;";
+    if (cellstyle.bgColor != null && cellstyle.bgColor != '') stylebgdata += "background-color: " + (cellstyle.bgColor == null ? "transparent" : cellstyle.bgColor) + " !important;";
+    stylebgdata += "}";
+
+    var stylerules = ($.browser.msie && document.documentMode <= 8 ? customstylesheet.rules : customstylesheet.cssRules);
+    if (customstylesheet.insertRule) {
+        customstylesheet.insertRule(stylename + styledata, stylerules.length);
+        customstylesheet.insertRule(stylebgname + stylebgdata, stylerules.length);
+    }
+    else if (customstylesheet.addRule) {
+        customstylesheet.addRule(stylename, styledata, stylerules.length);
+        customstylesheet.addRule(stylebgname, stylebgdata, stylerules.length);
+    }
+
+    var celltext = $.trim(cellstyle.text);
+
+    if (headercell != null && celltext != '')
+        $(headercell).find('span').text(cellstyle.text);
+    else if (cellid.indexOf('D1') == 0 )
+        $(tablecell).find('div').text(cellstyle.text);
+    else if (cellstyle.text != '')
+        $(tablecell).text(cellstyle.text);
+
+    if (!$(tablecell).hasClass(styleid)) $(tablecell).addClass(styleid);
+    if (!$(tablecell).hasClass(stylebgcid)) $(tablecell).addClass(stylebgcid);
+
+    if (headercell != null) {
+        $(headercell).height(cellstyle.height);
+    }
+    else 
+    {
+        if (cellstyle.height > 0) $(tablecell).height(cellstyle.height);
+    }
+
+   
+
+    if (headercell != null && !$(headercell).hasClass(styleid)) $(headercell).addClass(styleid);
+    if (headercell != null && !$(headercell).hasClass(stylebgcid)) $(headercell).addClass(stylebgcid);
+}
+
+function resetCellStyle(cellid, cell) {
+    var styleid = ("custstyle" + cellid).toLowerCase();
+    var stylebgcid = ("custstylebg" + cellid).toLowerCase();
+
+    if (cellid.indexOf('Sub') > 0) {
+        //$(g_crnt_cell).text(' ');
+        createCellStyleObject(false, cellid, $(cell).text(), '', '', '', '', '', '', '', null, null);
+        setCellStyle(cellid, cell, null);
+    }
+    else {
+        cellstyle = $.grep(g_custom_styles, function (e) {
+            return (e.rowid == cellid);
+        });
+        if (cellstyle.length > 0) {
+            g_custom_styles = $.grep(g_custom_styles, function (e) {
+                return (e.rowid != cellid);
+            });
+
+            if ($(cell).hasClass(styleid)) $(cell).removeClass(styleid);
+            if ($(cell).hasClass(stylebgcid)) $(cell).removeClass(stylebgcid);
+            remCellStyleClass(styleid, stylebgcid);
+
+            if ($(cell).hasClass('dxgvHeader_GridDefaultTheme')) return true; //Col Header
+            if ($(cell).hasClass('colhead')) return true; //Row Header
+            if ($(cell).parent().hasClass('dxgvGroupRow_GridDefaultTheme')) return true; //Group Row
+        }
+    }
+
+    return false;
+}
+
+function remCellStyleClass(styleid, stylebgcid) {
+    var customstyle = $("#customstyles")[0];
+    var customstylesheet = ($.browser.msie && document.documentMode <= 8 ? customstylesheet = customstyle.styleSheet : customstylesheet = customstyle.sheet);
+    var stylerules = ($.browser.msie && document.documentMode <= 8 ? customstylesheet.rules : customstylesheet.cssRules);
+
+    for (var iRule = 0; iRule < stylerules.length; iRule++) {
+        var ruleid = stylerules[iRule].selectorText.toLowerCase();
+        if (ruleid == "." + styleid || ruleid == "." + stylebgcid) {
+            if (customstylesheet.deleteRule) {
+                customstylesheet.deleteRule(iRule);
+                iRule--;
+            } else if (customstylesheet.removeRule) {
+                customstylesheet.removeRule(iRule);
+                iRule--;
+            }
+        }
+    }
+
+    return customstylesheet;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+//////////////////////// Objects & XML Tags ///////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+function doResetAll(usercommit, callback) {
+    if (g_custom_rows == null && g_custom_styles == null && $("#hdnTableFormatRows").val() == "" && $("#hdnTableFormatStyles").val() == "") return false;
+    if (!usercommit && !confirm('This will clear all your customizations in the table. Proceed?')) return false;
+
+    $("#hdnTableFormatRows").val("");
+    $("#hdnTableFormatStyles").val("");
+    g_custom_rows = null;
+    g_custom_styles = null;
+
+    var customstyle = $("#customstyles")[0];
+    var customstylesheet = ($.browser.msie && document.documentMode <= 8 ? customstyle.styleSheet : customstyle.sheet);
+    var stylerules = ($.browser.msie && document.documentMode <= 8 ? customstylesheet.rules : customstylesheet.cssRules);
+
+    for (var iRule = 0; iRule < stylerules.length; iRule++) {
+        var ruleid = stylerules[iRule].selectorText.toLowerCase();
+        if (ruleid.indexOf('.custstyle') == 0) {
+            if (customstylesheet.deleteRule) {
+                customstylesheet.deleteRule(iRule);
+                iRule--;
+            } else if (customstylesheet.removeRule) {
+                customstylesheet.removeRule(iRule);
+                iRule--;
+            }
+        }
+    }
+
+    if (callback) grid.PerformCallback();
+}
+
+function resetCustomRowTags() {
+    var strTableCustomRows = '';
+
+    for (var irow = 0; irow < g_custom_rows.length; irow++) {
+        if (strTableCustomRows != '') strTableCustomRows += '~';
+        strTableCustomRows += g_custom_rows[irow].rowid + '|' + g_custom_rows[irow].rowindex
+    }
+
+    $("#hdnTableFormatRows").val(strTableCustomRows);
+}
+
+function createCustomRowObjects() {
+    g_custom_rows = null;
+    if ($("#hdnTableFormatRows").val() == '') return;
+
+    var arrrows = $("#hdnTableFormatRows").val().split('~');
+    for (var irow = 0; irow < arrrows.length; irow++) {
+        if (arrrows[irow] == '') continue;
+
+        var arrrow = arrrows[irow].split('|');
+        var permrowindex = 0;
+        if (arrrow[0].indexOf('R') == 0)
+            permrowindex = parseInt(arrrow[0].replace('R', '').split('Sub')[0]);
+        else if (arrrow[0].indexOf('D1') == 0)
+            permrowindex = parseInt(arrrow[0].replace('D', '').split('Sub')[0]) - 1;
+        else if (arrrow[0].indexOf('D2') == 0)
+            permrowindex = parseInt($("#hdnTotalRows").val());
+
+        createCustomRowObject(false, arrrow[0], parseInt(arrrow[1]), permrowindex);
+    }
+}
+
+function createCustomRowObject(resettags, argrowid, argcrowindex, argprowindex) {
+    var newinsertrow = { rowid: argrowid, rowindex: argcrowindex, permrowindex: argprowindex };
+
+    if (g_custom_rows == null)
+        g_custom_rows = [newinsertrow];
+    else
+        g_custom_rows.push(newinsertrow);
+
+    if (resettags) resetCustomRowTags();
+}
+
+function resetCellStyleTags() {
+    var strCellStyles = '';
+
+    for (var irow = 0; irow < g_custom_styles.length; irow++) {
+        if (strCellStyles != '') strCellStyles += '~';
+
+        strCellStyles += g_custom_styles[irow].rowid + '|0|';
+        strCellStyles += g_custom_styles[irow].height + "|";
+        strCellStyles += g_custom_styles[irow].indent + "|false|";
+        strCellStyles += g_custom_styles[irow].align + "|";
+        strCellStyles += g_custom_styles[irow].valign + "|";
+        strCellStyles += g_custom_styles[irow].font + "|";
+        strCellStyles += g_custom_styles[irow].style + "|";
+        strCellStyles += g_custom_styles[irow].size + "|";
+        strCellStyles += (g_custom_styles[irow].color == null ? '' : g_custom_styles[irow].color) + "|";
+        strCellStyles += (g_custom_styles[irow].bgColor == null ? '' : g_custom_styles[irow].bgColor) + "|";
+        strCellStyles += htmlEncode(g_custom_styles[irow].text);
+    }
+
+    $("#hdnTableFormatStyles").val(strCellStyles);
+}
+
+function createCellStyleObjects() {
+    g_custom_styles = null;
+    if ($("#hdnTableFormatStyles").val() == '') return;
+
+    var arrrows = $("#hdnTableFormatStyles").val().split('~');
+    for (var irow = 0; irow < arrrows.length; irow++) {
+        if (arrrows[irow] == '') continue;
+
+        var arrrow = arrrows[irow].split('|');
+
+        createCellStyleObject(false, arrrow[0], arrrow[12], arrrow[7], arrrow[9], arrrow[8], arrrow[3], arrrow[2], arrrow[5], arrrow[6], (arrrow[10] != '' ? arrrow[10] : null), (arrrow[11] != '' ? arrrow[11] : null));
+    }
+}
+
+function createCellStyleObject(resettags, argRowID, argText, argFont, argSize, argStyle, argIndent, argHeight, argAlign, argVAlign, argColor, argbgColor) {
+    if (argColor != null && argColor.indexOf("#") < 0) argColor = "#" + argColor;
+    if (argbgColor != null && argbgColor.indexOf("#") < 0) argbgColor = "#" + argbgColor;
+    if (argHeight != '') argHeight = parseInt(argHeight);
+    if (argIndent != '') argIndent = parseInt(argIndent);
+
+    var newinsertrow = null;
+    if (g_custom_styles != null) {
+        newinsertrow = $.grep(g_custom_styles, function (e) {
+            return (e.rowid == argRowID);
+        });
+    }
+    if (newinsertrow == null || newinsertrow.length == 0) {
+        newinsertrow = { rowid: argRowID, text: htmlDecode(argText), font: argFont, size: argSize, style: argStyle, height: argHeight, indent: argIndent, align: argAlign, valign: argVAlign, color: argColor, bgColor: argbgColor };
+        if (g_custom_styles == null)
+            g_custom_styles = [newinsertrow];
+        else
+            g_custom_styles.push(newinsertrow);
+    }
+    else {
+        newinsertrow = newinsertrow[0];
+        newinsertrow.text = htmlDecode(argText);
+        newinsertrow.font = argFont;
+        newinsertrow.size = argSize;
+        newinsertrow.style = argStyle;
+        newinsertrow.indent = argIndent;
+        newinsertrow.height = argHeight;
+        newinsertrow.align = argAlign;
+        newinsertrow.valign = argVAlign;
+        newinsertrow.color = argColor;
+        newinsertrow.bgColor = argbgColor;
+    }
+
+    if (resettags) resetCellStyleTags();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//////////////////////// Color Picker Functions ///////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+function setColorPickerColor(spanid, colorid, cell) {
+    var color = $(cell).css(colorid)
+    var bg = null;
+
+    if (color.search("rgba") >= 0) {
+        bg = color.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)$/);
+        if (bg[1] == 0 && bg[2] == 0 && bg[3] == 0 && bg[4] == 0)
+            $(spanid)[0].color.active.val('hex', "#FFFFFF");
+        else
+            $(spanid)[0].color.active.val('rgba', { r: bg[1], g: bg[2], b: bg[3], a: bg[4] });
+    }
+    else if (color.search("rgb") >= 0) {
+        bg = color.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        $(spanid)[0].color.active.val('rgba', { r: bg[1], g: bg[2], b: bg[3], a: 255 });
+    }
+    else if (color=="transparent")
+        $(spanid)[0].color.active.val('hex', "#FFFFFF");
+    else {
+        $(spanid)[0].color.active.val('hex', color);
+    }
+}
+
+function getHexFromRGB(bg) {
+    if (bg.search("rgb") == -1)
+        return bg;
+    else {
+        if (bg.search("rgba") >= 0)
+            bg = bg.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+)\)$/);
+        else
+            bg = bg.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+        function hex(x) {
+            return ("0" + parseInt(x).toString(16)).slice(-2);
+        }
+        return "#" + hex(bg[1]) + hex(bg[2]) + hex(bg[3]);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//////////////////////// Generic Functions ////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+function htmlEncode(value) {
+    return $('<div/>').text(value).html();
+}
+
+function htmlDecode(value) {
+    return $('<div/>').html(value).text();
+}
+
+function insbefore(instype) {
+    return (instype == "insb");
+}
+
+function insafter(instype) {
+    return (instype == "insa");
+}
+
+function isGroupRow() {
+    return (g_crnt_obj_type == "grouprow");
+}
+
+function isCustomRow() {
+    return (g_crnt_obj_type == "customrow");
+}
+
+function isColHeader() {
+    return $(g_crnt_cell).hasClass('dxgvHeader_GridDefaultTheme');
+}
+
+function isRowHeader() {
+    return $(g_crnt_cell).hasClass('colhead');
+}
+
+function isLastRow(row, customrow, insertafter) {
+    if (customrow && $(row).attr('customid').indexOf('D2') == 0) return true;
+    else if (!customrow && insertafter && isLastPage()) {
+        var lastrow = $(g_grdtbl).find('tr.dxgvDataRow_GridDefaultTheme').last();
+        if (lastrow.length > 0 && row.className == lastrow[0].className) return true;
+    }
+
+    return false;
+}
+
+function isLastPage() {
+    var pagercontrol = $('.dxgvPagerBottomPanel_GridDefaultTheme');
+
+    if (pagercontrol.length == 0) return true;
+    if ($(pagercontrol).find('.dxWeb_pNextDisabled_GridDefaultTheme').length > 0) return true;
+
+    return false;
+}
+
+function getCustomRowID() {
+    return $(g_crnt_row).attr('customid');
+}
+
+function is_integer(value) {
+    return ((parseFloat(value) == parseInt(value)) && !isNaN(value));
+}
+
+function getTableMaxHeight() {
+    var totalHeight = 0;
+    
+    $(".report-view-tools-PageDim").each(function () {
+        totalHeight += $(this).height();
+    });
+    
+    $(".chartHeaderFooteralign").each(function () {
+        totalHeight += $(this).height();
+    });
+    
+    totalHeight += $('#MainContent_spanFooter').height();
+    totalHeight += 28;  // 3 * 14; //to adjust the <br> removing the last two <br> to avoid more blank spaces
+    totalHeight = $('.main-body').height() - totalHeight;
+    
+    return totalHeight;
+}
+
+function setTableScroll() {
+    var maxheight = getTableMaxHeight();
+    if (maxheight <= 0) return;
+    var fixedheight = $('.dxgvHSDC').height();
+    fixedheight += $('#grdTableView_DXFixedColumnsDiv').height();
+    fixedheight += $('.dxgvPagerBottomPanel_GridDefaultTheme').height();
+
+    if ($('#grdTableView_DXMainTable').height() > (maxheight - fixedheight)) {
+        $(g_grdtbl).parent('div').css('overflow-y', 'scroll');
+
+        grid.SetHeight(maxheight);
+        $('#' + getGridName()).height(maxheight);
+
+        if (maxheight - fixedheight > 0) $('#grdTableView_DXMainTable').parent().height(maxheight - fixedheight);
+    }
+    else {
+        $(g_grdtbl).parent('div').css('overflow-y', 'scroll');
+        $(g_grdtbl).parent('div').height('auto');
+        $("#grdTableView").height('auto');
+    }
+}
+
+function getDisplayWidth() {
+    return $('#divReportContent').width();
+}
+
+function getDisplayHeight() {
+    var totalheight = 0;
+
+    //totalheight = getIntValue('.main-frame', 'top');
+    //totalheight += getIntValue('#cbpReportView', 'top');
+    totalheight += $('#divReportContent').height();
+    //totalheight += getIntValue('#cbpReportView', 'padding-top');
+    //totalheight += getIntValue('#cbpReportView', 'padding-bottom');
+
+    return totalheight;
+}
+
+function getIntValue(control, cssproperty) {
+    var iTmpValue = 0;
+    iTmpValue = parseInt($(control).css(cssproperty));
+    if (isNaN(iTmpValue) || iTmpValue < 0) return 0;
+
+    return iTmpValue;
+}
+
+function isBold($targetCell) {
+    if ($targetCell.css('font-weight').toLowerCase() == 'bold') return true;
+    //font-weight equivalent value for bold http://www.w3.org/TR/CSS2/fonts.html#font-boldness
+    if ($targetCell.css('font-weight').toLowerCase() == '700') return true;
+
+    return false;
+}
+
+function getGridName() {
+    if (g_gridname == null || g_gridname == '') return 'grdTableView';
+
+    return g_gridname;
+}

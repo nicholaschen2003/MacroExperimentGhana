@@ -1,0 +1,76 @@
+#wb_feedback {
+    display: none;
+    margin: 0 auto;
+    padding: 0;
+    background: #0071bc;
+    align-items: center;
+    text-align: center;
+    font-size: 13px;
+    line-height: 20px;
+    -webkit-font-smoothing: initial;
+}
+#wb_feedback.report-page {
+    z-index: 2000;
+    position: absolute;
+    margin-left: auto;
+    margin-right: auto;
+    left: 0;
+    right: 0;
+    width: 570px;
+}
+#wb_feedback .wb_feedback_text img {
+    margin: 3px 6px 0px 4px;
+    vertical-align: middle;
+    width: 92px;
+}
+#wb_feedback p {
+    display: inline;
+}
+#wb_feedback a {
+    color: #ffffff;
+}
+    #wb_feedback a:hover {
+        text-decoration: none;
+    }
+#wb_feedback span {
+    font-size: 13px;
+    line-height: 20px;
+}
+.wb_feedback_text, .wb_feedback_descr {
+    font: 15px 'Open Sans';
+    color: white;
+}
+#wb_feedback .btn-schedule {
+    color: #fff;
+    border-radius: 15px;
+    padding: 3px 17px 3px 10px;
+    display: inline-block;
+    font-size: 13px;
+    line-height: 20px;
+    margin: 0 20px 0 8px;
+    background: url(https://live.worldbank.org/sites/default/files/white-arrow-right.png) no-repeat calc(100% - 6px) center;
+    background-color: #004c92;
+    background-size: 7px;
+}
+#wb_feedback .btn-schedule .fa {
+    font-size: 16px;
+    font-weight: 700;
+}
+#wb_feedback input[type="button"] {
+    background: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTA1IiBoZWlnaHQ9IjEwNSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4gPGc+ICA8cmVjdCBmaWxsPSJub25lIiBpZD0iY2FudmFzX2JhY2tncm91bmQiIGhlaWdodD0iMTA3IiB3aWR0aD0iMTA3IiB5PSItMSIgeD0iLTEiLz4gIDxnIGRpc3BsYXk9Im5vbmUiIG92ZXJmbG93PSJ2aXNpYmxlIiB5PSIwIiB4PSIwIiBoZWlnaHQ9IjEwMCUiIHdpZHRoPSIxMDAlIiBpZD0iY2FudmFzR3JpZCI+ICAgPHJlY3QgZmlsbD0idXJsKCNncmlkcGF0dGVybikiIHN0cm9rZS13aWR0aD0iMCIgeT0iMCIgeD0iMCIgaGVpZ2h0PSIxMDAlIiB3aWR0aD0iMTAwJSIvPiAgPC9nPiA8L2c+IDxnPiAgPGVsbGlwc2Ugcnk9IjUwIiByeD0iNTAiIGlkPSJzdmdfMSIgY3k9IjUyLjUiIGN4PSI1Mi43ODE2OSIgc3Ryb2tlLXdpZHRoPSIzIiBzdHJva2U9IiNmZmZmZmYiIGZpbGw9Im5vbmUiLz4gIDx0ZXh0IHN0cm9rZT0iI2ZmZmZmZiIgdHJhbnNmb3JtPSJtYXRyaXgoMS4xMDg5MjA3NzA0ODUzODM2LDAsMCwwLjcwNjQwMjIwNzAzNzEyOTUsLTMuODk0NjM3OTEwNDY1MzkxNCwxOS4xOTU3Mzk5Mzk3NzA3OTYpICIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSIgdGV4dC1hbmNob3I9InN0YXJ0IiBmb250LWZhbWlseT0iSGVsdmV0aWNhLCBBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSI4MCIgaWQ9InN2Z181IiB5PSI3Ny4yNjM1MyIgeD0iMjQuMDAxMDMiIHN0cm9rZS13aWR0aD0iMCIgZmlsbD0iI2ZmZmZmZiI+WDwvdGV4dD4gPC9nPjwvc3ZnPg==') no-repeat 0 0;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    margin: 14px 8px;
+    border: 0;
+    background-size: 20px;
+    text-indent: -9999px;
+    padding: 0;
+}
+
+@media(max-width:768px){
+    #wb_feedback {
+        text-align: left;
+        padding: 6px 10px;
+    }
+}

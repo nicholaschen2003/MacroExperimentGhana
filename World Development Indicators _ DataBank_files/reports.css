@@ -1,0 +1,136 @@
+﻿
+@font-face{font-family:'Open Sans'; src: url('../../fonts/OpenSans-Regular.eot?#iefix') format('embedded-opentype'), url('../../fonts/OpenSans-Regular.ttf');}
+@font-face{font-family:'Open Sans Light'; src: url('../../fonts/OpenSans-Light.eot?#iefix') format('embedded-opentype'), url('../../fonts/OpenSans-Light.ttf');}
+#buttonSetWrapper button,.buttonSetWrapper button,.ui-dialog .ui-dialog-buttonpane button{
+    display: inline-block;
+  margin-bottom: 0;
+  font-size: 14px;
+  font-weight: normal;
+  line-height: 1.428571429;
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+  background-image: none;
+  border: 1px solid transparent;
+  -webkit-user-select: none;
+     -moz-user-select: none;
+      -ms-user-select: none;
+       -o-user-select: none;
+          user-select: none;
+          font-family:"Open Sans";
+          padding: 5px 25px;
+    background: #999;
+    color: #fff;
+    border-radius: 0;    
+}
+.clsReportLinks{
+    text-decoration: none;
+    color: #397aac;
+    font-family:'Open Sans', sans-serif;
+    font-size: 13px;
+}
+a:hover{
+    text-decoration:underline;
+}
+.ui-dialog .ui-dialog-buttonpane{
+    padding:0px;
+}
+.ui-dialog-buttonset{
+    padding:7px;
+}
+.ui-dialog-buttonset > button:first-child{
+    background: #38b1ef !important;
+    color: #fff;
+    border-radius: 0;
+}
+#buttonSetWrapper > button:first-child,.buttonSetWrapper > button:first-child{
+    background: #38b1ef !important;
+    color: #fff;
+    border-radius: 0;
+}
+.ui-widget-content{
+    background:#FFF;
+}
+.ui-widget-header{
+    background:#FFF;        
+        border: none;
+    border-bottom: 1px solid #e5e5e5;
+        text-transform: uppercase;
+    font-weight: bold;
+    font-size: 14px;
+    color: #333;
+    border-radius:0px!important;
+}
+.ui-dialog{
+    padding:0px!important;
+    font-family:'Open Sans', sans-serif;
+    font-size:12px;
+}
+.ui-dialog-titlebar-close{
+    background:#FFF;
+    border:none;
+}
+.ui-dialog-titlebar-close::after{
+    content:"x";
+    font-size: 18px;
+    font-weight: bold;
+    line-height: 1;
+    color: #000000;
+    text-shadow: 0 1px 0 #ffffff;
+    opacity: 0.2;
+}
+.ui-widget-content{
+    /*border:none;*/
+}
+.ui-widget input, .ui-widget select, .ui-widget textarea, .ui-widget button{
+    font-family:"Open Sans";
+}
+.ui-dialog .ui-dialog-content {
+    padding:15px!important;
+}
+.ui-dialog-content .ui-widget-content table tr{
+    padding-bottom:5px;
+}
+.ui-dialog-titlebar-close:focus{
+    outline: none;
+}
+.icon-info {
+    background-position: -505px -730px;
+    width: 18px;
+    height: 18px;
+    cursor:pointer;
+}
+.sprite {
+    display: inline-block;
+    vertical-align: middle;
+    width: 25px;
+    height: 25px;
+    background:url("../../images/sprite.png") no-repeat;
+}
+
+.highfreequencytab {       
+    overflow: hidden;
+    margin-bottom:10px;
+}
+
+    .highfreequencytab label {
+        float: left;
+        padding: 10px;
+        border: 1px solid #ccc;
+        outline: none;
+        cursor: pointer;
+        transition: 0.3s;
+        font-size: 12px;
+        background-color: #FFFFFF;
+        font-family: 'Open Sans', sans-serif;
+        color: #666666;
+        font-weight: bold;
+        width: 20%;
+        margin-bottom: 0px;
+    }
+
+.highfreequencytab label.active {
+        color: #FFFFFF;
+        background-color: #38B1EF;
+    }

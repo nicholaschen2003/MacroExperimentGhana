@@ -1,0 +1,750 @@
+//var originalSrc = gbl_embedpath + "reportwidget.aspx?report_name=samplereport2&id=674db50d&dd=y&tb=y&sh=y&dw=y&pr=n&inf=y&zm=y&theme=darkGrey&bdrClr=rgb(177,186,170)&bdrStyle=solid&bdrWidth=0px";
+var gbl_embedsource_src = gbl_embedpath;
+
+$(document).ready(function () {
+    //    $("#liEmbed").click(function () {
+    //        $("#upReport").hide();
+    //        $("#embedIframeWrapper").show();
+    //    });
+    chooseEmbedFrameSize();
+    showHideEntities();
+    initAvailableThemeSel();
+
+    initializeJPickerEmdebOpt();
+});
+
+function chooseEmbedFrameSize() {
+    $(".btnEmbedSize").click(function () {
+        var dimension = $(this).attr("embed-size");
+        dimension = dimension.split("X");
+        var embedWidth = dimension[0];
+        var embedHeight = dimension[1];
+
+        $("#chartWrapper").attr("width", embedWidth);
+        $("#chartWrapper").attr("height", embedHeight);
+
+        $("#inputEmbedWidth").val(embedWidth);
+        $("#inputEmbedHeight").val(embedHeight);
+        //        generateCode();
+        //        dropDownPlacement();
+
+        showembedloading();
+
+        $("#chartWrapper").attr("src", "");
+        $("#chartWrapper").attr("src", gbl_embedsource_src);
+        generateCode();
+    });
+
+    $("#inputEmbedWidth").blur(function () {
+        var customWidth = $(this).val();
+
+        $("#chartWrapper").attr("width", customWidth);
+
+        if (customWidth <= 500) {
+            $(".btnEmbedSize").removeClass("active");
+            $("#embedSmallSize").addClass("active");
+
+        }
+        if (customWidth > 500 && customWidth <= 750) {
+            $(".btnEmbedSize").removeClass("active");
+            $("#embedMediumSize").addClass("active");
+        }
+        if (customWidth > 750) {
+            $(".btnEmbedSize").removeClass("active");
+            $("#embedLargeSize").addClass("active");
+        }
+
+        showembedloading();
+
+        $("#chartWrapper").attr("src", "");
+        $("#chartWrapper").attr("src", gbl_embedsource_src);
+        generateCode();
+
+        TrackFeature("Embed->Embed Dimensions->Custom Width");    
+    });
+
+    
+
+    $("#inputEmbedHeight").blur(function () {
+        var customHeight = $(this).val();
+        var customWidth = $("#inputEmbedWidth").val();
+        $("#chartWrapper").attr("height", (customHeight - 50));
+
+//        $("#widget").css("height", customHeight + "px");
+        if (customWidth <= 500) {
+            $(".btnEmbedSize").removeClass("active");
+            $("#embedSmallSize").addClass("active");
+
+        }
+        if (customWidth > 500 && customWidth <= 750) {
+            $(".btnEmbedSize").removeClass("active");
+            $("#embedMediumSize").addClass("active");
+        }
+        if (customWidth > 750) {
+            $(".btnEmbedSize").removeClass("active");
+            $("#embedLargeSize").addClass("active");
+        }
+
+        showembedloading();
+        $("#chartWrapper").attr("src", "");
+        $("#chartWrapper").attr("src", gbl_embedsource_src);
+        TrackFeature("Embed->Embed Dimensions->Custom Height");    
+    });
+
+//    generateCode();
+}
+
+function showembedloading() {
+    var $iframebody = $('#chartWrapper').contents().find('body');
+    var iframedatatop = parseInt($iframebody.height() / 2);
+    $iframebody.html($('#report-loading')[0].outerHTML);
+    $iframebody.find('#report-loading').css('top', iframedatatop + 'px').css('width', '90%').css('text-align', 'center').css('position', 'absolute').show();
+    setTimeout(function () { $iframebody.find('#report-loading img').attr('src', gbl_basepath + 'images/ajax-loader.gif'); }, 200);
+}
+
+function showHideEntities() {
+ 
+    $("#chkDimensionDpDwn").on("click", function () {
+        TrackFeature("Embed->Display->Dimension dropdown");
+        $(this).is(":checked") ? $("#chartWrapper").contents().find("#REPORT_PREVIEW_divdropdown").show() : $("#chartWrapper").contents().find("#REPORT_PREVIEW_divdropdown").hide();
+        generateCode();
+    });
+    $("#chkMetadataDimensionDpDwn").on("click", function () {
+        $(this).is(":checked") ? $("#chartWrapper").contents().find(".metadata-tools").show() : $("#chartWrapper").contents().find(".metadata-tools").hide();
+        $(this).is(":checked") ? $("#chartWrapper").contents().find(".columnContent").css('top', '70px') : $("#chartWrapper").contents().find(".columnContent").css('top', '40px');
+        generateCode();
+    });
+
+    $("#chkLinkBar").on("click", function () {
+        TrackFeature("Embed->Display->Toolbar");
+        $(this).is(":checked") ? $("#chartWrapper").contents().find("#embedLinks").fadeIn("fast", function () {
+            $(".secondary").removeAttr("disabled");
+            $("#availableThemes").show();
+            $(".secondary").prop("checked", true);
+            $("#embedLinkList li a").show();
+        }) : $("#chartWrapper").contents().find("#embedLinks").fadeOut("fast", function () {
+            $(".secondary").attr("disabled", true); $("#availableThemes").hide();
+            $(".secondary").prop("checked", true);
+            $(".tertiary").prop("disabled", true);
+        });
+        //        generateCode();generateCode();
+        generateCode();
+    });
+
+    $("#chkShareLink").on("click", function () {
+        TrackFeature("Embed->Display->Share");
+        $(this).is(":checked") ? $("#chartWrapper").contents().find("#shareLink").show() : $("#chartWrapper").contents().find("#shareLink").hide();
+        //        generateCode();
+        generateCode();
+    });
+    $("#chkDownloadLink").on("click", function () {
+        TrackFeature("Embed->Display->Download");
+        $(this).is(":checked") ? $("#chartWrapper").contents().find("#downloadLink").show("fast", function () {
+            $(".tertiary").prop("checked", true);
+            $(".tertiary").prop("disabled", false);
+            generateCode();
+        }) : $("#chartWrapper").contents().find("#downloadLink").hide("fast", function () {
+
+//            $(".tertiary").prop("checked", true);
+            $(".tertiary").prop("disabled", true);
+            generateCode();
+        });
+        //        generateCode();
+    });
+
+    $("#chkPrintLink").on("click", function () {
+        TrackFeature("Embed->Display->Print");
+        $(this).is(":checked") ? $("#chartWrapper").contents().find("#printLink").show() : $("#chartWrapper").contents().find("#printLink").hide();
+        generateCode();
+    });
+
+    $("#chkNavigator").on("click", function () {
+        TrackFeature("Embed->Display->Navigator");
+        showembedloading();
+        generateCode();
+
+        $("#chartWrapper").attr("src", "");
+        $("#chartWrapper").attr("src", gbl_embedsource_src);
+    });
+
+    $("#chkEmbedShowZoombar").on("click", function () {
+        //debugger;
+
+        if ($(this).is(":checked")) {
+            $("#chartWrapper").contents().find("#map_zoom_slider").show();
+            $("#chartWrapper").contents().find('#hdnShowZoombar').val('1');
+        }
+        else {
+            $("#chartWrapper").contents().find("#map_zoom_slider").hide();
+            $("#chartWrapper").contents().find('#hdnShowZoombar').val('0');
+        }
+
+        generateCode();
+    });
+
+    $("#chkEmbedShowLegend").on("click", function () {
+        //debugger;
+
+        if ($(this).is(":checked")) {
+            $("#chartWrapper").contents().find("#legend").show();
+            $("#chartWrapper").contents().find('#hdnShowLegend').val('1');
+        }
+        else {
+            $("#chartWrapper").contents().find("#legend").hide();
+            $("#chartWrapper").contents().find('#hdnShowLegend').val('0');
+        }
+
+        generateCode();
+    });
+
+    $("#chkInfoLink").on("click", function () {
+
+        $(this).is(":checked") ? $("#chartWrapper").contents().find("#infoLink").show() : $("#chartWrapper").contents().find("#infoLink").hide();
+        generateCode();
+    });
+
+    $("#chkExcel").on("click", function () {
+        TrackFeature("Embed->Display->Download->Excel");
+        $(this).is(":checked") ? $("#chartWrapper").contents().find(".downloadExcel").show() : $("#chartWrapper").contents().find(".downloadExcel ").hide();
+                generateCode();
+    });
+    $("#chkCSV").on("click", function () {
+        TrackFeature("Embed->Display->Download->CSV");
+        $(this).is(":checked") ? $("#chartWrapper").contents().find(".downloadCSV").show() : $("#chartWrapper").contents().find(".downloadCSV").hide();
+                generateCode();
+    });
+    $("#chkTabbedTxt").on("click", function () {
+        TrackFeature("Embed->Display->Download->Tabbed TXT");
+        $(this).is(":checked") ? $("#chartWrapper").contents().find(".downloadTAB").show() : $("#chartWrapper").contents().find(".downloadTAB").hide();
+                generateCode();
+    });
+
+    $("#embedSmallSize").off("click");
+    $("#embedSmallSize").on("click", function () {
+        TrackFeature("Embed->Embed Dimensions->Present->Small");       
+    });
+
+    $("#embedMediumSize").off("click");
+    $("#embedMediumSize").on("click", function () {
+        TrackFeature("Embed->Embed Dimensions->Present->Medium");
+    });
+
+    $("#embedLargeSize").off("click");
+    $("#embedLargeSize").on("click", function () {
+        TrackFeature("Embed->Embed Dimensions->Present->Large");
+    });
+
+    
+
+    //if ($("#chkOmnitureSuite").length > 0) 
+    //{
+    // $("#chkOmnitureSuite").on("click", function () {
+    //    generateCode();
+    //});
+    //}
+//    $("#chkFullScrLnk").on("click", function () {
+
+//        $(this).is(":checked") ? $("#chartWrapper").contents().find("#fullScreen").show() : $("#chartWrapper").contents().find("#fullScreen").hide();
+//        generateCode();
+//    });
+
+    $("#selDescFontStyle").change(function () {
+        var value = $(this).val();
+        if (value == "bold") {
+            $("#chartWrapper").contents().find("#widgetDesc").css({"font-weight":"bold", "font-style": "normal"});
+
+        }
+        if (value == "bold italic") {
+           
+            $("#chartWrapper").contents().find("#widgetDesc").css({ "font-weight": "bold", "font-style": "italic" });
+
+        }
+        if (value == "italic") {
+            $("#chartWrapper").contents().find("#widgetDesc").css({ "font-weight": "normal", "font-style": "italic" });
+
+        }
+        if (value == "normal") {
+            $("#chartWrapper").contents().find("#widgetDesc").css({ "font-style": "normal", "font-weight": "normal" });
+
+        }
+        generateCode();
+        TrackFeature("Embed->Title & Description->Show Description->Font style");
+    });
+
+    $("#radioBtnShowDesc").click(function () {
+
+        $("#chartWrapper").contents().find("#widgetDesc").show();
+        generateCode();
+    });
+
+    $("#selDescFont").change(function () {
+        var value = $(this).val();
+        $("#chartWrapper").contents().find("#widgetDesc").css({ "font-family": value });
+        generateCode();
+        TrackFeature("Embed->Title & Description->Show Description->Font Type");
+    });
+
+    $("#selDescFontSize").change(function () {
+        var value = $(this).val();
+        $("#chartWrapper").contents().find("#widgetDesc").css({ "font-size": value });
+        generateCode();
+        TrackFeature("Embed->Title & Description->Show Description->Font Size");
+    });
+
+    $("#selDescAlignment").change(function () {
+        var value = $(this).val();
+        $("#chartWrapper").contents().find("#widgetDesc").css({ "text-align": value });
+        generateCode();
+        TrackFeature("Embed->Title & Description->Show Description->Horizondal Alignment");
+    });
+
+
+
+    $("#selTitleFontStyle").change(function () {
+        var value = $(this).val();
+        if (value == "bold") {
+            $("#chartWrapper").contents().find("#widgetTitle").css({ "font-weight": "bold", "font-style": "normal" });
+
+        }
+        if (value == "bold italic") {
+
+            $("#chartWrapper").contents().find("#widgetTitle").css({ "font-weight": "bold", "font-style": "italic" });
+
+        }
+        if (value == "italic") {
+            $("#chartWrapper").contents().find("#widgetTitle").css({ "font-weight": "normal", "font-style": "italic" });
+
+        }
+        if (value == "normal") {
+            $("#chartWrapper").contents().find("#widgetTitle").css({ "font-style": "normal", "font-weight": "normal" });
+
+        }
+        generateCode();
+        TrackFeature("Embed->Title & Description->Show Title->Font style");
+    });
+
+    $("#radioBtnShowTitle").click(function () {
+        TrackFeature("Embed->Title & Description->Show Title");
+        $("#chartWrapper").contents().find("#widgetTitle").show();
+        generateCode();
+    });
+    $("#radioBtnHideTitle").click(function () {
+        TrackFeature("Embed->Title & Description->Hide Title");
+        $("#chartWrapper").contents().find("#widgetTitle").hide();
+        generateCode();
+    });
+
+    $("#radioBtnShowDesc").click(function () {
+        TrackFeature("Embed->Title & Description->Show Description");
+        $("#chartWrapper").contents().find("#widgetDesc").show();
+        generateCode();
+    });
+    $("#radioBtnHideDesc").click(function () {
+        TrackFeature("Embed->Title & Description->Hide Description");
+        $("#chartWrapper").contents().find("#widgetDesc").hide();
+        generateCode();
+    });
+
+    $("#selTitleFont").change(function () {
+        var value = $(this).val();
+        $("#chartWrapper").contents().find("#widgetTitle").css({ "font-family": value });
+        generateCode();
+        TrackFeature("Embed->Title & Description->Show Title->Font Type");
+    });
+
+    $("#selTitleFontSize").change(function () {
+        var value = $(this).val();
+        $("#chartWrapper").contents().find("#widgetTitle").css({ "font-size": value });
+        generateCode();
+        TrackFeature("Embed->Title & Description->Show Title->Font Size");
+    });
+
+    $("#selTitleAlignment").change(function () {
+        var value = $(this).val();
+        $("#chartWrapper").contents().find("#widgetTitle").css({ "text-align": value });
+        generateCode();
+        TrackFeature("Embed->Title & Description->Show Title->Horizontal Alignment");
+    });
+
+    $("#borderWidth").change(function () {
+        TrackFeature("Embed->Canvas Options->Border Width");
+        if ($(this).find(":selected").val() != "None") {
+            $("#chartWrapper").contents().find("#widgetpreview").css("border-width", $(this).find(":selected").val().split("px")[0] + "px")
+            $("#borderStyle,#canvasBorder").show();
+//            $("#canvasBorder").next().show();
+
+        }
+        generateCode();
+    });
+
+    $("#borderStyle").change(function () {
+        TrackFeature("Embed->Canvas Options->Border Style");
+        $("#chartWrapper").contents().find("#widgetpreview").css("border-style", $(this).find(":selected").val());
+        generateCode();
+    });
+
+    $("#txtTitle").keyup(function () {
+        $("#widgetTitle", getFrame().documentElement).html($("#txtTitle").val());
+    });
+
+    $("#txtDesc").keyup(function () {
+        $("#widgetDesc", getFrame().documentElement).html($("#txtDesc").val());
+    });
+
+    $("#radioBtnShowTitle, #radioBtnShowDesc").on('click', function () {
+        //debugger;
+        if ($("#txtTitle").val() == '') $("#txtTitle").val($("#widgetTitle", getFrame().documentElement).html());
+        if ($("#txtDesc").val() == '') $("#txtDesc").val($("#widgetDesc", getFrame().documentElement).html());
+    });
+
+    $('.applyChangesEmbed').on('click', function () {
+        var reportid = $('#hdnReportID').val();
+
+        if (reportid == '' || parseInt(reportid) <= 0) {
+            alert('Please save the report before apply changes.');
+            return;
+        }
+
+        $.ajax({
+            type: "POST",
+            url: gbl_report_methods + "/SaveTitleDescReports",
+            contentType: "application/json; charset=utf-8",
+            data: '{reportid: ' + reportid + ', title:"' + $('#txtTitle').val() + '", description:"' + $('#txtDesc').val() + '"}',
+            dataType: "json",
+            success: function (data) {
+                if (data.d != '')
+                    alert('Failed to save Title and Descrption');
+            },
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                $("#report-loading").fadeOut(500);
+                window.location.href = "../../ddperror.aspx";
+            }
+        });
+
+        TrackFeature("Embed->Title & Description->Apply changes");
+    });
+}
+
+function getFrame() {
+    var objFrame = document.getElementById("chartWrapper"), objFrameDoc = objFrame.contentDocument || objFrame.contentWindow.document;
+    return objFrameDoc;
+}
+
+function initAvailableThemeSel() {
+
+
+    $(".availableThemeList li").on("click", function () {
+        TrackFeature("Embed->Toolbar Themes")
+        var selectedTheme = $(this).attr("id");
+        $(".availableThemeList li").removeClass("active");
+        $(this).addClass("active");
+        $("#chartWrapper").contents().find("#embedLinkList li").attr("class", "");
+
+        $("#chartWrapper").contents().find("#embedLinkList li").addClass(selectedTheme);
+
+
+        $("#chartWrapper").contents().find("#infoLinkDesc").attr("class", "");
+        $("#chartWrapper").contents().find("#downloadLinkDesc").attr("class", "");
+        $("#chartWrapper").contents().find("#shareLinkDesc").attr("class", "");
+
+
+        $("#chartWrapper").contents().find("#infoLinkDesc").addClass("embedLinkDesc");
+        $("#chartWrapper").contents().find("#downloadLinkDesc").addClass("embedLinkDesc");
+        $("#chartWrapper").contents().find("#shareLinkDesc").addClass("embedLinkDesc");
+        $("#chartWrapper").contents().find("#infoLinkDesc").addClass(selectedTheme);
+        $("#chartWrapper").contents().find("#downloadLinkDesc").addClass(selectedTheme);
+        $("#chartWrapper").contents().find("#shareLinkDesc").addClass(selectedTheme);
+
+        generateCode();
+        //        generateCode();
+    });
+
+//    $(".closeToolTip").on("click", function () {
+
+//        $(".embedLinkDesc").hide();
+
+//    });
+}
+
+var gbl_map_zoomdata = '';
+var gbl_map_extentdata = '';
+
+function generateEmbedForMap(zoomdata, extentdata) {
+    gbl_map_zoomdata = zoomdata;
+    gbl_map_extentdata = extentdata;
+
+    generateCode();
+}
+
+
+function generateCode() {
+    $(".embed").val("");
+    var ti, ds, dd, tb, sh, dw, pr, inf, zm, xlbl, ylbl, legend, oms,navig;
+    var strFullURL = "";
+    var theme = $(".availableThemeList li.active").attr("id");
+    var bdrClr = $("#canvasBorder")[0].color == null ? 'rgb(255,255,255)' : $("#canvasBorder")[0].color.active.val('rgb');
+    var bdrStyle = $("#borderStyle").val();
+    var bdrWidth = $("#borderWidth").val();
+
+
+    $("#radioBtnShowTitle").hasClass("active") ? (ti = "y") : (ti = "n");
+    $("#radioBtnShowDesc").hasClass("active") ? (ds = "y") : (ds = "n");
+    
+    
+    $("#chkDimensionDpDwn").is(":checked") ? (dd = "y") : (dd = "n");
+    $("#chkMetadataDimensionDpDwn").is(":checked") ? (md = "y") : (md = "n");
+    $("#chkLinkBar").is(":checked") ? (tb = "y") : (tb = "n");
+    $("#chkShareLink").is(":checked") ? (sh = "y") : (sh = "n");
+    $("#chkDownloadLink").is(":checked") ? (dw = "y") : (dw = "n");
+    $("#chkPrintLink").is(":checked") ? (pr = "y") : (pr = "n");
+    $("#chkNavigator").is(":checked") ? (navig = "y") : (navig = "n");
+    $("#chkInfoLink").is(":checked") ? (inf = "y") : (inf = "n");
+    //if ($("#chkOmnitureSuite").length > 0) {
+    //    $("#chkOmnitureSuite").is(":checked") ? (oms = "y") : (oms = "n");
+    //}
+//    $("#chkFullScrLnk").is(":checked") ? (zm = "y") : (zm = "n");
+    zm = "y";
+
+    var iWidth = $("#inputEmbedWidth").val();
+
+    var iHeight = $("#inputEmbedHeight").val();
+
+    var titlecolor = $("#selTitleFontColor")[0].color == null ? 'rgb(255,255,255)' : $("#selTitleFontColor")[0].color.active.val('rgb');
+    var desccolor = $("#selDescColor")[0].color == null ? 'rgb(255,255,255)' : $("#selDescColor")[0].color.active.val('rgb');
+
+//    var strFullURL = '';
+//    if ($('#chkExternalAccess').length > 0 && $('#chkExternalAccess').is(':checked')) {
+//        var strReportUID = $('#hdnExternalUID').val();
+//        var strReportName = $('#hdnExternalName').val();
+//        var extlang = 'en';
+//        $('#divExternalLang').show();
+//        $('#divExternalText').show();
+//        extlang = $('#selExternalLang').val();
+//        strFullURL = extreports_url[extlang];
+//        if (!strFullURL.endsWith("/")) strFullURL += "/";
+//        strFullURL += 'embed-int/' + strURLPart2;
+//    }
+//    else {
+//        $('#divExternalLang').hide();
+//        $('#divExternalText').hide();
+//        strFullURL = strOriginalSrc1 + strURLPart2;
+//    }
+    var strDownloadOpts = '';
+    $('.downloadopt').each(function () {
+        if (this.checked) {
+            if (strDownloadOpts != '') strDownloadOpts += ",";
+            strDownloadOpts += this.id.replace('chk', '');
+        }
+    });
+
+
+    toSaveOptions = "ti=" + ti + "&ds=" + ds + "&dd=" + dd + "&tb=" + tb + "&sh=" + sh + "&dw=" + dw + "&pr=" + pr + "&inf=" + inf + "&zm=" + zm + "&md=" + md;
+    if ($("#chkXAxis").length > 0) toSaveOptions += "&xlbl=" + xlbl + "&ylbl=" + ylbl + "&legend=" + legend; //only for chart
+    toSaveOptions += "&navigator=" + navig + "&theme=" + theme + "&bdrClr=rgb(" + bdrClr.r + "," + bdrClr.g + "," + bdrClr.b + ")&bdrStyle=" + bdrStyle + "&bdrWidth=" + bdrWidth;
+
+    if (ti == "y") {
+        var titleBoldStyle, titleItalicStyle;
+        var titleFontStyle = $("#selTitleFontStyle").val();
+        switch (titleFontStyle) {
+            case "bold":
+                titleBoldStyle = true;
+                titleItalicStyle = false;
+                break;
+            case "bold italic":
+                titleBoldStyle = true;
+                titleItalicStyle = true;
+                break;
+            case "italic":
+                titleBoldStyle = false;
+                titleItalicStyle = true;
+                break;
+            case "normal":
+                titleBoldStyle = false;
+                titleItalicStyle = false;
+                break;
+        }
+
+
+        toSaveOptions += "&title=" + $('#selTitleFont').val() + ";" +
+                        $('#selTitleFontSize').val() + ";" +
+                         titleBoldStyle + ";" +
+                         titleItalicStyle + ";rgb(" + titlecolor.r + "," + titlecolor.g + "," + titlecolor.b + ");" +
+                         $('#selTitleAlignment').val();
+    }
+
+    if (ds == "y") {
+        var descBoldStyle, descItalicStyle;
+        var descFontStyle = $("#selDescFontStyle").val();
+        switch (descFontStyle) {
+            case "bold":
+                descBoldStyle = true;
+                descItalicStyle = false;
+                break;
+            case "bold italic":
+             
+             
+                descBoldStyle = true;
+                descItalicStyle = true;
+                break;
+            case "italic":
+                descBoldStyle = false;
+                descItalicStyle = true;
+                break;
+            case "normal":
+                descBoldStyle = false;
+                descItalicStyle = false;
+                break;
+        }
+      
+        toSaveOptions += "&desc=" + $('#selDescFont').val() + ";" + $('#selDescFontSize').val() + ";" +
+        descBoldStyle + ";" +
+        descItalicStyle + ";rgb(" + desccolor.r + "," + desccolor.g + "," + desccolor.b + ");" +
+        $('#selDescAlignment').val();
+    }
+    if (oms != null && oms != "" && oms == "y")
+        toSaveOptions += "&exptypes=" + strDownloadOpts + "&oms=" + oms;
+    else
+        toSaveOptions += "&exptypes=" + strDownloadOpts;
+
+    if ($('#hdnReportType').val().toUpperCase() == 'MAP') {
+        toSaveOptions += '&maplegend=' + ($('#chkEmbedShowLegend').prop('checked') ? 'Y' : 'N');
+        toSaveOptions += '&zoom=' + ($('#chkEmbedShowZoombar').prop('checked') ? 'Y' : 'N');
+        if (gbl_map_zoomdata != '') toSaveOptions += '&zoomlevel=' + gbl_map_zoomdata;
+        if (gbl_map_extentdata != '') toSaveOptions += '&latlon=' + gbl_map_extentdata;
+    }
+
+    //if (gbl_common_internal) {
+    //    if ($('#chkExternalAccess').is(':checked')) {
+    //        var extlang = $('#selExternalLang').val();
+    //        strFullURL = getPublishedReportsEmbedURL(extlang);
+    //    }
+    //    else {
+    //        strFullURL = getEmbedURL();
+    //    }
+    //}
+    //else {
+        strFullURL = getEmbedURL();
+    //}
+    
+    var src = strFullURL + (strFullURL.indexOf('?') > 0 ? "&" : "?") + toSaveOptions;
+
+    var iframeCode = "<iframe frameBorder='no' src=\"" + src + "\" width= \"" + iWidth + "\"  height=\"" + iHeight + "\"></iframe>";
+
+//    $("#embedCode").html(iframeCode);
+
+//    var clippy_swf = "scripts/reports/plugins/clippy.swf";
+
+//    $('#embed1').html('').clippy({ 'text': iframeCode, clippy_path: clippy_swf });
+//    $('#embed2').html('').clippy({ 'text': iframeCode, clippy_path: clippy_swf });
+//    $('#embed3').html('').clippy({ 'text': iframeCode, clippy_path: clippy_swf });
+//    $('#embed4').html('').clippy({ 'text': iframeCode, clippy_path: clippy_swf });
+//    $('#embed5').html('').clippy({ 'text': iframeCode, clippy_path: clippy_swf });
+
+    gbl_embedsource_src = src;
+
+    $('#txtEmbedCode').val(iframeCode);
+
+    return src;
+}
+
+
+function getEmbedURL() {
+    var embedUrl = "";
+    if ($('#hdnReportURL').val() != '') {
+        //if (gbl_baseurl.indexOf('localhost') >= 0) {
+        //    var urlparts = $('#hdnReportURL').val().split('/');
+        //    embedUrl = 'http://' + gbl_baseurl + gbl_embedpath.substring(1) + "reports/reportwidget.aspx?report_name=" + urlparts[0] + "&id=" + urlparts[2];
+        //}
+        //else {
+        //    //if (gbl_common_internal)
+        //    //    embedUrl = 'http://' + gbl_baseurl + $('#hdnReportURL').val();
+        //    //else
+        //}
+
+        embedUrl = 'https://' + gbl_baseurl + 'embed/' + $('#hdnReportURL').val();
+    }
+    return embedUrl;
+}
+
+//function getPublishedReportsEmbedURL(extlang) {
+//    var embedUrl = "";
+//    var strReportUID = $('#hdnExternalUID').val();
+//    var strReportName = $('#hdnExternalName').val();
+//    var hostJSON = $.parseJSON($("#hdnExternalDomains").val());
+//    var hostname = hostJSON[extlang];
+//    if (hostname != '') {
+//        if (hostname.indexOf('http://localhost') >= 0) {
+//            embedUrl = hostname + '/Views/Reports/ReportWidgetCustom.aspx?Report_Name=' + strReportName + '&amp;Id=' + strReportUID;
+//        }
+//        else {
+//            embedUrl = hostname + '/embed-int/' + strReportName + '/id/' + strReportUID;
+//        }
+//    }
+
+//    return embedUrl;
+//}
+
+function initializeJPickerEmdebOpt() {
+
+    $('.colorPickerEmdebOpt').jPicker({
+        window: { expandable: true },
+        color: { alphaSupport: true, active: new $.jPicker.Color({ ahex: '#444444' }) },
+        position: { x: 'screenCenter', y: '0px' }
+    },
+		function (color, context) // Ok button 
+		{
+            TrackFeature("Embed->Canvas Options->Color Picker");
+
+		    var all = color.val('all').hex || 'transparent';
+		    var target = $(this).attr("id");
+
+		    switch (target) {
+
+		    	case "selTitleFontColor":
+		    	    $("#chartWrapper").contents().find("#widgetTitle").css("color", "#" + all);
+		            generateCode();
+		            break;
+		    	case "selDescColor":
+		    	    $("#chartWrapper").contents().find("#widgetDesc").css("color", "#" + all);
+		    	    generateCode();
+		            break;
+		        case "canvasBorder":
+		            $("#chartWrapper").contents().find("#widgetpreview").css("border-color", "#" + all);
+		            generateCode();
+		            break;
+		    }
+		}
+		);
+}
+
+function generateEmbedCode(viewtype) {
+    var sEmbed = 'Embed URL is not available for this view';
+    //var chkexternalaccess = true;
+    //var divexternallang = $('#divExternalLang');
+    if (viewtype == 'share') {
+        //chkexternalaccess = $('#chkExternalAccessShare');
+        //divexternallang = $('#divExternalLangShare');
+    }
+    //var isExternal = chkexternalaccess.is(':checked');
+    //if (isExternal)
+    //    divexternallang.show();
+    //else
+    //    divexternallang.hide();
+
+    if (viewtype == 'share') {
+        //if (isExternal) {
+        //    var extlang = $('#selExternalLangShare').val();
+        //    var shareurl = getPublishedReportsEmbedURL(extlang);
+        //    $('#lnkPermReportLink').html(shareurl);
+        //    $('#lnkPermReportLink').attr("href", shareurl);
+        //}
+        //else {
+            $('#lnkPermReportLink').html(getEncodedUrl());
+            $('#lnkPermReportLink').attr("href", getEncodedUrl());
+        //}
+
+    }
+    else {
+        generateCode();
+    }
+}

@@ -1,0 +1,21 @@
+﻿function wb_note_setcookie(cname, cvalue, exdays) {
+    var d = new Date();
+    d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+    var expires = "expires=" + d.toUTCString();
+    document.cookie = cname + "=" + cvalue + "; " + expires;
+}
+
+$(document).ready(function () {
+    var wb_note_beta = document.cookie.replace(/(?:(?:^|.*;\s*)wb_note_beta\s*\=\s*([^;]*).*$)|^.*$/, '$1');
+
+    if (wb_note_beta != 1) {
+        $('#wb_feedback').css("display", "block");
+        $('#wb_feedback').show();
+    }
+});
+
+$('#survey_img').on('click', function () {
+    wb_note_setcookie('wb_note_beta', '1', 1);
+    $('#wb_feedback').hide();
+    $('body').css('padding-top', '0px');
+});

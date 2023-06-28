@@ -1,0 +1,292 @@
+.sprite { display: inline-block; vertical-align: middle; width: 25px; height: 25px;
+ background: url("../images/sprite.png") no-repeat; }
+
+/* common */
+.icon-worldbank{background-position: -533px -452px;}
+.icon-worldclock{background-position: -504px -453px; width: 18px; height: 18px;}
+.ddh-logo { width: 217px; height: 27px; background-position: -5px -687px; }
+.wb-logo{width: 270px; height: 51px; background-position: 0px 0px; position: relative; top: 0px;}
+.icon-top-fb{width: 31px; height: 31px; background-position: -255px -628px;}
+.icon-top-twitter{width: 31px; height: 31px; background-position: -289px -628px;}
+.icon-top-instagram{width: 31px; height: 31px; background-position: -320px -628px;}
+.icon-top-linkedin{width: 31px; height: 31px; background-position: -352px -628px;}
+.icon-top-leftarrow{width: 9px; height: 18px; background-position: -388px -628px;}
+.icon-top-downarrow{width: 14px; height: 12px; background-position: -388px -650px;}
+.icon-search-top{width: 19px; height: 18px; background-position: -401px -628px;}
+.icon-login{width: 25px; height: 25px; background-position: -428px -632px;}
+/* common */
+
+/* home page icons starts */
+.icon-map, .icon-comments, .star-full, .star-empty, .icon-menu { width: 21px; height: 16px; }
+.icon-map { background-position: -418px -4px; width: 18px; }
+.icon-comments { background-position: -395px -3px; }
+.star-full { width: 17px; /*background-position: -395px -26px;*/
+ background: url("../images/star-full.png") no-repeat; }
+.star-empty { width: 17px; /*background-position: -395px -26px;*/
+ background: url("../images/star-empty.png") no-repeat;}
+.icon-menu { width: 23px; height: 24px; background-position:-565px -9px; margin-right: 10px; }
+.icon-back { width: 16px; height: 16px; margin-right: 5px; background-position: -502px -187px; }
+.sprite.icon-m, .icon-m { display: inline-block; height: 98px; width: 92px; margin-bottom: 10px; }
+.icon-m.datatypes { background-position: 0px -52px; }
+.icon-m.regions { background-position: -103px -52px; }
+.icon-m.topics { background-position: -203px -52px; }
+.icon-m.featured { background-position: -303px -52px; }
+.icon-m.application { background-position: -397px -52px; }
+.icon-m.collection { background-position: -497px -52px; }
+.icon-despositdata { background-position: -300px -3px; }
+.icon-viewmore { background-position: -300px -32px; width: 5px; height: 10px; }
+/* Data types Icons */
+.menu-datatypes .sprite{width: 125px; height: 123px; margin: 15px;}
+.sprite.icon-ts{background-position: -1px -470px; width: 125px; height: 123px;}
+.sprite.icon-md{background-position: -152px -470px; width: 125px; height: 123px;}
+.sprite.icon-gs{background-position: -304px -470px; width: 125px; height: 123px;}
+/* Region & Countries Icons */
+.regions-icons .sprite { width: 30px; height: 30px; margin: 15px; }
+.country-tab .nav-tabs > li.active .regions-icons { border-color: #00528e; }
+.sprite.icon-africa { background-position: -1px -164px; }
+.country-tab .nav-tabs > li.active .icon-africa { background-position: -1px -202px; }
+.sprite.icon-eastasia { background-position: -40px -164px; }
+.country-tab .nav-tabs > li.active .icon-eastasia { background-position: -40px -202px; }
+.sprite.icon-europe { background-position: -80px -164px; width: 46px; margin: 15px auto; }
+.country-tab .nav-tabs > li.active .icon-europe { background-position: -80px -202px; }
+.sprite.icon-latinamerica { background-position: -133px -164px; width: 22px; }
+.country-tab .nav-tabs > li.active .icon-latinamerica { background-position: -133px -202px; }
+.sprite.icon-middlewast { background-position: -164px -171px; width: 50px; height: 19px; margin: 19px auto 11px; }
+.country-tab .nav-tabs > li.active .icon-middlewast { background-position: -164px -208px; }
+.sprite.icon-southasia { background-position: -222px -165px; }
+.country-tab .nav-tabs > li.active .icon-southasia { background-position: -222px -206px; }
+
+/* Topics Icons */
+/* SVG Icons */
+
+.sprite.img-topic { background:url(../images/sprite_topics.svg) no-repeat; width: 65px; height: 43px; vertical-align: bottom; position: absolute; bottom: 65px; left: 0; right: 0; margin: auto; }
+.sprite.icon-agriculture { background-position: -428px -20px; width: 32px; }
+.topic-name .topic-list:hover .icon-agriculture { background-position: -14px -13px; }
+.sprite.icon-climatechange { background-position: -480px -10px; height: 66px; width: 46px; }
+.topic-name .topic-list:hover .icon-climatechange { background-position: -66px -2px; }
+.sprite.icon-economic { background-position: -544px -28px; width: 44px; height: 40px; }
+.topic-name .topic-list:hover .icon-economic { background-position: -130px -20px; }
+.sprite.icon-education { background-position: -607px -28px; height: 28px; }
+.topic-name .topic-list:hover .icon-education { background-position: -193px -20px; }
+.sprite.icon-energy { background-position: -691px -28px; width: 31px; height: 51px; }
+.topic-name .topic-list:hover .icon-energy { background-position: -278px -20px; }
+.sprite.icon-natural { background-position: -742px -29px; width: 49px; height: 49px; }
+.topic-name .topic-list:hover .icon-natural { background-position: -328px -21px; }
+.sprite.icon-financial { background-position: -434px -99px; width: 41px; height: 39px; }
+.topic-name .topic-list:hover .icon-financial { background-position: -20px -91px; }
+.sprite.icon-conflict { background-position: -495px -100px; width: 43px; height: 49px; }
+.topic-name .topic-list:hover .icon-conflict { background-position: -81px -92px; }
+.sprite.icon-gender { background-position: -558px -100px; width: 31px; height: 44px; }
+.topic-name .topic-list:hover .icon-gender { background-position: -144px -92px; }
+.sprite.icon-health { background-position: -609px -99px; height: 40px; width: 42px; }
+.topic-name .topic-list:hover .icon-health { background-position: -195px -91px; }
+.sprite.icon-information { background-position: -671px -100px; height: 32px; width: 45px; }
+.topic-name .topic-list:hover .icon-information { background-position: -257px -92px; }
+.sprite.icon-job { background-position: -737px -101px; width: 56px; height: 44px; }
+.topic-name .topic-list:hover .icon-job { background-position: -323px -93px; }
+.sprite.icon-policies { background-position: -437px -169px; width: 45px; height: 45px; }
+.topic-name .topic-list:hover .icon-policies { background-position: -23px -161px; }
+.sprite.icon-debt { background-position: -502px -169px; height: 42px; width: 46px; }
+.topic-name .topic-list:hover .icon-debt { background-position: -88px -161px; }
+.sprite.icon-poverty { background-position: -567px -170px; height: 46px; width: 45px; }
+.topic-name .topic-list:hover .icon-poverty { background-position: -153px -162px; }
+.sprite.icon-sector { background-position: -630px -169px; width: 37px; height: 45px;}
+.topic-name .topic-list:hover .icon-sector { background-position: -216px -161px; }
+.sprite.icon-ps-management { background-position: -687px -171px; height: 45px; width: 45px; }
+.topic-name .topic-list:hover .icon-ps-management { background-position: -273px -163px; }
+.sprite.icon-public-private { background-position: -752px -169px; height: 41px; width: 46px; }
+.topic-name .topic-list:hover .icon-public-private { background-position: -338px -161px; }
+.sprite.icon-social-dev { background-position: -434px -241px; width: 46px; height: 49px; }
+.topic-name .topic-list:hover .icon-social-dev { background-position: -20px -233px; }
+.sprite.icon-labor { background-position: -501px -241px; height: 46px; width: 42px; }
+.topic-name .topic-list:hover .icon-labor { background-position: -87px -233px; }
+.sprite.icon-trade { background-position: -560px -233px; width: 48px; height: 52px; }
+.topic-name .topic-list:hover .icon-trade { background-position: -146px -225px; }
+.sprite.icon-transport { background-position: -628px -241px; height: 36px; width: 59px; }
+.topic-name .topic-list:hover .icon-transport { background-position: -214px -233px; }
+.sprite.icon-urban { background-position: -708px -236px; width: 45px; }
+.topic-name .topic-list:hover .icon-urban { background-position: -294px -228px; }
+.sprite.icon-water { background-position: -772px -228px; width: 45px; }
+.topic-name .topic-list:hover .icon-water { background-position: -357px -220px; }
+
+/* SVG Icons */
+/* home page icons ends */
+
+/* Listing Page icons starts */
+.icon-download{background-position: -554px -159px; width: 15px; height: 15px;}
+.icon-api{background-position: -539px -159px; width: 15px; height: 15px;}
+.icon-mapview{background-position: -521px -159px; width: 15px; height: 15px;}
+.icon-share{background-position: -518px -187px; width: 18px; height: 15px;}
+.icon-msg{background-position: -540px -187px; width: 16px; height:15px;}
+.icon-view{background-position: -559px -185px; width: 20px; height: 15px;}
+.icon-search{background-position: -502px -339px ; width: 18px; height: 18px;}
+/* Listing Page icons ends */
+
+/* details page icon starts */
+.icon-csv{    background-position: -397px -729px;    width: 16px;    height: 16px;}
+.icon-zip{background-position: -547px -208px; width: 35px; height: 40px;}
+.icon-download-blue{background-position: -572px -159px; width: 15px; height: 15px;}
+.icon-preview{background-position: -583px -187px; width: 15px; height: 15px;}
+.icon-downloadapi{background-position: -502px -256px; width: 28px; height: 32px;}
+.icon-db{background-position: -540px -256px; width: 16px; height: 16px;}
+.icon-tables{background-position: -502px -298px; width: 16px; height: 16px;}
+.icon-tab{background-position: -419px -726px; width: 24px; height: 28px;}
+.icon-sdmx{background-position: -468px -726px; width: 24px; height: 28px;}
+.icon-ios{background-position: -540px -298px; width: 28px; height: 32px;}
+.icon-data{background-position: -502px -485px; width: 32px; height: 41px;}
+.icon-json{background-position: -544px -486px; width: 32px; height: 41px;}
+.icon-rdf{background-position: -502px -539px; width: 32px; height: 41px;}
+.icon-goto-resource{background-position: -546px -540px; width: 12px; height: 12px;}
+.icon-sm-json{background-position: -569px -539px; width: 16px; height: 16px;}
+.icon-sm-rdf{background-position: -569px -566px; width: 16px; height: 16px;}
+.icon-sm-twitter{background-position: -9px -598px; width: 26px; height: 26px;}
+.icon-sm-linkedin{background-position: -48px -598px; width: 26px; height: 26px;}
+.icon-sm-reddit{background-position: -87px -598px; width: 26px; height: 26px;}
+.icon-sm-googleplus{background-position: -125px -598px; width: 26px; height: 26px;}
+.icon-sm-facebook{background-position: -164px -598px; width: 26px; height: 26px;}
+.icon-sm-share{background-position: -202px -598px; width: 26px; height: 26px;}
+.icon-sm-ddhspark{background-position: -240px -598px; width: 26px; height: 26px;}
+.icon-sm-datablog{background-position: -279px -598px; width: 26px; height: 26px;}
+
+.icon-sm-msg{background-position: -326px -598px; width: 12px; height: 9px;}
+.icon-sm-print{background-position: -345px -598px; width: 12px; height: 12px;}
+.icon-sm-add{background-position: -363px -598px; width: 12px; height: 12px;}
+.icon-sm-twit{background-position: -383px -598px; width: 15px; height: 12px;}
+
+/* details page icon ends */
+
+/* deposit page */
+.icon-info{background-position: -533px -339px; width:16px; height: 16px;}
+.icon-calendar{background-position: -535px -366px; width: 14px; height: 14px;}
+.icon-search-blk{background-position: -503px -366px; width: 19px; height: 19px;}
+.icon-down-arrow{background-position: -557px -339px; width: 21px; height: 14px;}
+.icon-up-arrow{background-position: -557px -362px; width: 21px; height: 14px;}
+.icon-deposit-sts-pending{background-position: -504px -394px; width: 18px; height: 16px;}
+.icon-deposit-sts-inprogress{background-position: -533px -394px; width: 18px; height: 16px;}
+.icon-deposit-sts-completed{background-position: -561px -394px; width: 18px; height: 16px;}
+.icon-excel{background-position: -445px -729px; width: 16px; height: 16px;}
+.icon-edit{background-position: -534px -427px; width: 16px; height: 16px;}
+
+
+/******Databank icons*********/
+.wb-logo-ibrd, .wb-logo-ibrd-en{width: 153px !important;height: 31px !important;background: url("../images/logo-ibrd.png") no-repeat !important;}
+.wb-logo-ibrd-es{width: 170px;height: 37px;background: url("../images/logo/databank_header_es.png") no-repeat;}
+.wb-logo-ibrd-fr{width: 200px;height: 34px;background: url("../images/logo/databank_header_fr.png") no-repeat;}
+.wb-logo-ibrd-zh{width: 153px;height: 37px;background: url("../images/logo/databank_header_zh.png") no-repeat;}
+.wb-logo-ibrd-ar{width: 153px;height: 37px;background: url("../images/logo/databank_header_ar.png") no-repeat;}
+.wbg-logo-footer-en { background-position: -342px 0px !important; width: 180px!important; height: 37px!important; }
+.wbg-logo-footer-es { background: url("../images/logo/databank_footer_es.png") no-repeat; width: 210px!important; height: 37px!important; }
+.wbg-logo-footer-fr { background: url("../images/logo/databank_footer_fr.png") no-repeat; width: 280px!important; height: 37px!important; }
+.wbg-logo-footer-zh { background: url("../images/logo/databank_footer_zh.png") no-repeat; width: 110px!important; height: 37px!important; }
+.wbg-logo-footer-ar { background: url("../images/logo/databank_footer_ar.png") no-repeat; width: 170px!important; height: 37px!important; }
+
+.icon-play{background-position:-503px -617px; width: 18px; height: 19px;}
+.icon-faq{background-position:-530px -618px; width: 18px; height: 19px;}
+.icon-feedback{background-position:-556px -618px; width: 18px; height: 19px;}
+.icon-topic{background-position:-503px -648px; width: 18px; height: 22px;}
+.icon-user{background-position:-388px -284px; width: 18px; height: 22px;}
+.icon-source{background-position:-530px -647px; width: 22px; height: 22px;}
+.desc-badge{background-position:-507px -592px; width: 15px; height: 18px;margin-right:6px;}
+.icon-filtertype{background-position:-503px -700px; width: 18px; height: 22px;}
+.icon-folder-close{background-position:-533px -704px; width: 19px; height: 18px;}
+.icon-database{background-position:-559px -674px; width: 19px; height: 22px;}
+.icon-folder-open{background-position:-561px -704px; width: 19px; height: 25px;}
+.icon-graphline{background-position:-531px -676px; width: 18px; height: 18px;}
+.icon-graphwave{background-position:-503px -679px; width: 18px; height: 15px;}
+
+/*Variables*/
+.icon-help{background-position:-531px -618px;width:17px;height:17px}
+.icon-info{background-position:-506px -730px;width:17px;height:17px}
+.icon-filter{background-position:-580px -596px;width:12px;height:13px}
+.icon-search-blue{background-position:-501px -339px;width:18px;height:18px}
+.icon-tick{background-position:-505px -753px;width:18px;height:19px}
+.icon-delete{background-position:-531px -754px;width:14px;height:18px}
+.icon-sort{background-position:-554px -754px;width:14px;height:18px}
+.icon-expand{background-position:-579px -616px;width:17px;height:18px;margin-left:5px}
+li.active .icon-grid{background-position:-582px -652px;width:15px;height:15px;margin-right:8px}
+.icon-chart{background-position:-560px -652px;width:15px;height:15px;margin-right:8px}
+.icon-map{background-position:-524px -159px;width:12px;height:15px;margin-right:8px}
+.icon-metadata{background-position:-558px -421px;width:20px;height:20px;margin-right:8px}
+.icon-download{background-position:-557px -157px;width:12px;height:13px;margin-right:8px}
+.icon-back-arw{background-position:-555px -594px;width:13px;height:10px}
+.icon-search-black{background-position: -502px -158px;width: 18px;height: 18px;}
+.icon-info-blue{background-position: -533px -339px;width: 18px;height: 18px;}
+.icon-twitter{width: 12px;height: 11px;background: url("../images/icon-twitter.png") no-repeat;margin-right:7px;margin-top: -3px;}
+.icon-fb{width: 12px;height: 13px;background: url("../images/icon-fb.png") no-repeat center center;margin-right:7px;margin-top: -3px;}
+.icon-linked{width: 12px;height: 11px;background: url("../images/icon-linked.png") no-repeat;margin-right:7px;margin-top: -5px;}
+.icon-login-green{width:25px;height:25px;background: url("../images/icon-login-green.png") no-repeat;margin-right:5px;}
+.icon-ddh-spark{width:17px;height:17px;background: url("../images/icon-ddh-spark.png") no-repeat;margin-right:5px;}
+.icon-faq{width:17px;height:17px;/*background: url("../images/icon-faq.png") no-repeat;*/margin-right:5px;}
+.icon-tutorial{width:16px;height:16px;background: url("../images/icon-tutorial.png") no-repeat;margin:-1px 5px 0 0;}
+.icon-feedback {
+    width: 18px;
+    height: 15px;
+    /* background: url(../images/icon-feedback.png) no-repeat; */
+    margin: -1px 5px 0 0; 
+} 
+
+.icon-bgrid-blue{
+	width:36px;height:31px;
+	background-position:-304px -673px;
+}
+.icon-bchart{
+    width:33px;height:29px;
+    background-position: -259px -674px;
+}
+.icon-bglobe-blue{
+	width:33px;height:31px;
+	background-position:-350px -673px;
+}
+.icon-binfo-blue{
+	width:33px;height:31px;
+	background-position:-393px -673px;
+}
+
+.icon-chart, .shared-report-chart .icon{
+	width:16px;height:16px;
+	background-position:-260px -730px;
+    margin-right: 5px;
+}
+.icon-globe-blue, .shared-report-map .icon{
+	width:16px;height:16px;
+	background-position:-316px -730px;
+    margin-right: 5px;
+}
+.icon-grid-blue, .shared-report-table .icon{
+	width:16px;height:16px;
+	background-position:-288px -730px;
+    margin-right: 5px;
+}
+
+.icon-SD{
+	width:16px;height:16px;
+	background-position:-288px -730px;
+    margin-right: 5px;
+}
+
+.icon-info-blue, .shared-report-metadata .icon{
+	width:16px;height:16px;
+	background-position:-345px -730px;
+    margin-right: 5px;
+}
+
+#wbBanner #reportBanner .wb-logo-ibrd-en{
+    float:left;
+    margin:5px;   
+}
+
+.loaderClass{
+    position: fixed;
+    background: rgba(255,255,255,.4);
+    width: 100%;
+    align-items:center;   
+    top: 50%;
+    left: 50%;
+    height: 100%;
+    z-index: 100;
+    transform: translate(-50%,-50%);
+}
+.login-home {
+    background-position: -428px -632px;
+    padding: 0px 28px 0px 1px;
+} 

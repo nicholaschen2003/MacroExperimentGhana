@@ -1,0 +1,3048 @@
+var gbl_download_name = '';
+var gbl_download_code = '';
+var gbl_download_type = '';
+var gbl_selectedTab;
+var loadingCounter = 0;
+var gbl_selectedTabOnSwitch = "";
+
+$(function () {
+    initCommon();
+});
+
+function getPanelHeading(obj) {
+    var panelheading = $(obj).parents('.panel').find('.panel-heading .panel-title').prop('innerText');
+    if (panelheading == null) {
+        if ($(obj).parents('.modal-content').find('#zoomModalTitle'))
+            panelheading = $(obj).parents('.modal-content').find('#zoomModalTitle').prop('innerText');
+        else
+            panelheading = "Heading";
+    }
+    if (panelheading) panelheading = panelheading.trim();
+    else panelheading = "Heading";
+
+    return panelheading;
+}
+
+function TrackFeature(featureName) {
+    try {
+        setTimeout(function () {
+            console.log(featureName);
+
+            $.ajax({
+                type: "POST",
+                url: gbl_report_methods + "/TrackFeature",
+                contentType: "application/json; charset=utf-8",
+                data: "{Page: 'Report' ,Feature: '" + featureName + "'}",
+                dataType: "json",
+                success: function (data) {
+                    if (data.d == false) console.log('Feature tracking failed.');
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                    console.error("Error occcured while traking " + featureName)
+                }
+            });
+        }, 0);
+    }
+    catch (ex) {
+        console.log('Error in feature tracking.');
+    }
+}
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+            results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+function htmlEncode(value) {
+    return $('<div/>').text(value).html();
+}
+
+function htmlDecode(value) {
+    return $('<div/>').html(value).text();
+}
+
+function initCommon() {
+     $('.download').off('click');
+     $('.download').on('click', function (e) {
+         e.stopPropagation();
+         isdownloadlimit = false;
+         var maxlimitexceeded = checkvariablelimit();
+         if (maxlimitexceeded) {
+             if (gbl_common_internal) {
+                 buildDownloadAdvanced();
+                 $("#lblDownloadComputer").hide();
+                 $("#lblDownloadComputer").removeClass("active");
+                 $("#lblDownloadSaveToAccount").addClass("active");
+                 $("#saveToAccountOptions").show();
+                 $("#liMetadataDownloadAdvanced").hide();
+                 $("#advancedDownloadOptions").modal("show");
+             }
+             else {
+                 if (!isdownloadlimit) {
+                     buildDownloadAdvanced();
+                     $("#advancedDownloadOptions").modal("show");
+                 }
+                 else {
+                     if ($(".selectionModifyTxt").is(":visible"))
+                         $(".selectionModifyTxt").hide();
+                     if ($('#divNoDataToDisplay').is(":visible"))
+                         $("#divNoDataToDisplay").hide();
+                     $(".downloadMsg").show();
+                 }
+             }
+         }
+         else {
+             $("#downloadDropdown").slideToggle();
+         }
+     });
+
+
+     $('.cancelChangesDim').off('click');
+     $('.cancelChangesDim').on('click', function () {
+         //debugger;
+         document.getElementById('selModifyText').innerHTML = gbl_common_labels.Reports_Label_Selection_Modified;
+         $.each(gbl_array_member_selected_clone, function (key, val) {
+             //debugger;
+
+             var controlid = key;
+             var targetId = "#tbl_" + controlid;
+
+             $(targetId).parent().find(".selectedView").html('');
+             gbl_array_member_selected[controlid] = jQuery.extend(true, {}, val);
+             GenarateAdobeDimensions(controlid);
+
+             $('#tbl_' + controlid).find('li.selected').removeClass('selected');
+             $('#tbl_' + controlid).find('.chkSelectElement').prop({ checked: false });
+             var memberselected = gbl_array_member_selected[controlid];
+             $.each(memberselected, function (key, val) {
+                 if (!val.iscustom) {
+                     var $item = $('#tbl_' + controlid).find("li[uniqueid='" + key + "']");
+
+                     $item.addClass('selected');
+                     $item.find('input').prop({ checked: true });
+                 }
+             });
+
+             getSelectedMembers(controlid, targetId);
+         });
+
+
+         var rpttype = $('#hdnReportType').val().toUpperCase();
+         switch (rpttype) {
+             case 'TABLE':
+                 setTableOptions();
+
+                 if (!$('#formatSeries').hasClass('collapse')) $('#btnFormatSeries').trigger('click');
+                 $('#formatSeries').html('');
+
+                 if (!$('#comparatorReport').hasClass('collapse')) $('#btnComparatorReport').trigger('click');
+                 $('#comparatorReport').html('');
+
+                 if (!$('#hideColumns').hasClass('collapse')) $('#btnHideColumns').trigger('click');
+                 $('#hideColumns').html('');
+
+                 break;
+             case 'CHART':
+                 setChartOptions();
+
+                 if (!$('#formatSeries').hasClass('collapse')) $('#btnFormatSeries').trigger('click');
+                 $('#formatSeries').html('');
+
+                 if (!$('#comparatorReport').hasClass('collapse')) $('#btnComparatorReport').trigger('click');
+                 $('#comparatorReport').html('');
+
+                 if (!$('#xAxisOptions').hasClass('collapse')) $('#btnXaxis').trigger('click');
+                 $('#divXAxisFormatAdvanced').html('');
+
+                 break;
+             case 'MAP':
+
+                 break;
+             case 'METADATA':
+
+                 break;
+         }
+
+         if ($(".selectionModifyTxt").is(":visible"))
+             $(".selectionModifyTxt").hide();
+         if ($(".confirmationTxt").is(":visible"))
+             $(".confirmationTxt").hide();
+         $("#faded").hide();
+
+     });
+
+     $('.applyChangesDim').off('click');
+     $('.applyChangesDim').on('click', function () {
+
+        
+         var selectedvars = $('#hdnSelectVars').val() == '' ? '[]' : $('#hdnSelectVars').val();
+         document.getElementById('selModifyText').innerHTML = gbl_common_labels.Reports_Label_Selection_Modified;
+         if (onUpdateVarsClick()) {
+             var isDimensionSelected = 0;
+             $(".selectionCountRHS").each(function () {
+                 var val = eval($(this).text());
+                 if (val == null || val < 1 || val == '') {
+                     isDimensionSelected++;
+                 }
+             });
+
+             if (isDimensionSelected > 0) {
+                 listUnselectedVariables(false);
+
+                 $("#divNoDataToDisplay").show();
+                 $("#cbpReportView").hide();
+                 $("#upReportDD").hide();
+
+                 $(".selectionModifyTxt").hide();
+                 $(".faded").show();
+             }
+             else {
+
+                 //newly added to work for both variables and options in single apply change
+                 var rpttype = $('#hdnReportType').val().toUpperCase();
+                 switch (rpttype) {
+                     case 'TABLE':
+                         if (!onUpdateTableOptionsClick()) return;
+                         break;
+                     case 'CHART':
+                         if (!onUpdateChartOptionsClick()) return;
+                         break;
+                     case 'MAP':
+                         //map is handled inside mapoptions.js
+                         break;
+                     case 'METADATA':
+                         //onUpdateMetadataOptionsClick();
+                         break;
+                 }
+
+                 $(".formatList .download,.formatList .download a").removeClass("disabled");
+                 $(".selectionModifyTxt").hide();
+                 $("#faded").hide();
+
+                 //debugger;
+
+                 var ispostbackrequired = selectedvars != $('#hdnSelectVars').val();
+                 if (rpttype == 'METADATA' && !ispostbackrequired) {
+                     ispostbackrequired = gbl_metadata_attr_changed;
+                     gbl_metadata_attr_changed = false;
+                 }
+                 else if (rpttype == 'TABLE') {
+                     ispostbackrequired = true;
+                 }
+                 else if (rpttype == 'CHART') {
+                     ispostbackrequired = true;
+                 }
+
+                 if (ispostbackrequired) __doPostBack('lnkUpdateVarsOpts', '');
+             }
+         }
+         else {
+             listUnselectedVariables(false);
+         }
+     });
+
+    $('.confirmOK').off('click');
+    $('.confirmOK').on('click', function () {
+        $(".confirmationTxt").hide();
+            __doPostBack('lnkChart', '')
+    });
+
+    //debugger;
+    var rpttype = $('#hdnReportType').val().toUpperCase();
+    var onclicktracker = '', onchangetracker = '', onkeypresstracker = '';
+    var onclicktracker_client = '', onchangetracker_client = '', onkeypresstracker_client = '';
+    if (rpttype == 'TABLE') {
+        onclicktracker += ' #divTablePopularOrientation .btn, #divRowsPerPage .btn,';
+        onclicktracker += ' #chkShowNotes, #chkCommaSep, #chkTableHideEmptyRow, #chkTableHideEmptyCol,#btnComparatorReport';
+
+        onchangetracker += ' .custom-orientation-ddl, #ddlNAPref, #ddlScale, #ddlPrecision,';
+        onchangetracker += ' #ddlTableHierarchy, #ddlTableMRVFunc, #ddlTableMRVInt';
+
+        onkeypresstracker += ' #txtReportHeader, #txtReportFooter, #txtReportNotes';
+    }
+    else if (rpttype == 'CHART') {
+        onclicktracker += ' #divChartPopularOrientation .btn';
+        onchangetracker += ' .custom-orientation-ddl, #ddlScale, #ddlPrecision,#btnComparatorReport';
+
+        onkeypresstracker += '';
+
+        onclicktracker_client += ' #chkAutoAdjust, #chkShowGridLines, #chkShowTooltip, #chkShowDataPointsChart,';
+        onclicktracker_client += ' #chkShowNavigator, #chkCommaSep, #chkShowXAxisLine, #chartStyles .btn,#chkShowDataPointTooltip';
+
+        onchangetracker_client += ' #ddlChartType,#ddlSharedToolTip';
+
+        onkeypresstracker_client += ' #txtWidth, #txtHeight, #txtXaxisInterval, #txtNavigatorHeight,';
+        onkeypresstracker_client += ' #txtYaxisprimaryscalesettingmin, #txtYaxisprimaryscalesettingmax, #txtYaxissecondaryscalesettingmin, #txtYaxissecondaryscalesettingmax,';
+        onkeypresstracker_client += ' #txtReportHeader, #txtReportFooter';
+
+        //only for internal
+        if ((typeof (getChartOptionsAdvanced) == typeof (Function))) {
+            onclicktracker += ' ,#chkHideEmptyColumns, #chkHideEmptyRows, #chkAllDataValue, #lblYAxisApplyAll, #radioYAxisApplyAll';
+            onchangetracker += ' ,#ddlXaxisprimaryweekday, #ddlXaxisprimaryDay, #ddlXaxisprimaryMonth, #ddlXaxisprimaryYear, #ddlAllChartType, #ddlAllAxis';
+            onkeypresstracker += ' #txtXaxisprimarycustomdateformat';
+            
+            onclicktracker_client += ' ,#chkShowChartBorder, #chkDottedGridlines, #chartLegend .btn, #chkXaxisline, #chkXaxisprimarymultiline';
+
+            onchangetracker_client += ' ,#ddlZoominDataChart, #ddlchartLegendFontStyle, #ddlchartLegendFontType, #ddlchartLegendFontSize, #ddlchartLegendVerticalAlign, #ddlchartLegendHorizontalAlign';
+            onchangetracker_client += ' ,#ddlXaxisprimarylabelfontType, #ddlXaxisprimarylabelfontStyle, #ddlXaxisprimarylabelfontSize, #ddlXaxisprimarytitlefontStyle';
+            onchangetracker_client += ' ,#ddlXaxisprimarytitlefontType, #ddlXaxisprimarytitlefontSize';
+            onchangetracker_client += ' ,#ddlYaxisprimarylabelfontStyle, #ddlYaxisprimarylabelfontType, #ddlYaxisprimarylabelfontSize';
+            onchangetracker_client += ' ,#ddlYaxisprimarytitlefontStyle, #ddlYaxisprimarytitlefontType, #ddlYaxisprimarytitlefontSize';
+            onchangetracker_client += ' ,#ddlYaxissecondarylabelfontStyle, #ddlYaxissecondarylabelfontType, #ddlYaxissecondarylabelfontSize';
+            onchangetracker_client += ' ,#ddlYaxissecondarytitlefontStyle, #ddlYaxissecondarytitlefontType, #ddlYaxissecondarytitlefontSize';
+
+            onkeypresstracker_client += ' ,#txtXaxisPrimarylabelInterval, #txtXaxisprimarylabelrotation, #txtXaxisprimarytitle, #txtXaxisprimarytickInterval';
+            onkeypresstracker_client += ' ,#txtYaxisPrimarylabelInterval, #txtYaxisprimarylabelrotation, #txtYaxisprimarypointwidth, #txtYaxisprimarygrouppadding';
+            onkeypresstracker_client += ' ,#txtYaxisprimarytitle, #txtYaxisprimarytickInterval, #txtYaxisprimaryscalesettingmin, #txtYaxisprimaryscalesettingmax';
+            onkeypresstracker_client += ' ,#txtYaxissecondarylabelInterval, #txtYaxissecondarylabelrotation';
+            onkeypresstracker_client += ' ,#txtYaxissecondarytitle, #txtYaxissecondarytickInterval, #txtYaxissecondaryscalesettingmin, #txtYaxissecondaryscalesettingmax';
+        }
+    }
+    else if (rpttype == 'MAP') {
+        FilterDimensions();
+    }
+    else if (rpttype == 'METADATA') {
+        onclicktracker_client += ' #metadata-orientation .btn';
+    }
+
+    attachTrackerEvents(onclicktracker, onchangetracker, onkeypresstracker, onclicktracker_client, onchangetracker_client, onkeypresstracker_client);
+
+    $("body").off("click", ".radioSelectElement");
+    $("body").on("click", ".radioSelectElement", function () {
+        TrackFeature("Variables->Database->Change Database");
+
+        //debugger;
+        $(this).parents(".availableView").find("li").removeClass("selected");
+        $(this).parents("li").addClass("active");
+        var uniqidsel = $('#tbl_sel_DBList li.selected').attr('uniqueid');
+        var uniqidchk = $('#tbl_DBList input:checked').parent().attr('uniqueid');
+        var sourcename = $('#tbl_DBList input:checked').parent().attr('source').replace('&', "and");
+        sourcename = encodeCubeName(sourcename).toLowerCase();
+        var rpttype = $('#hdnReportType').val();
+
+        if (uniqidsel != uniqidchk) {
+            if (confirm('If the current report is not saved, please save before proceeding. This will change the database and you may lose your current selections and formatting. Do you wish to proceed?')) {
+                $('#report-loading').show();
+
+                if ($('#btnDBPreview input[name="previewoption"]:checked').val() == "ON")
+                    window.location.href = gbl_basepath + "source/" + sourcename + "/Type/" + rpttype + "/preview/on";
+                else
+                    window.location.href = gbl_basepath + "source/" + sourcename;//other report types will not support preview off mode
+            }
+        }
+
+        toggleFilterHierarchy();
+    });
+
+    $("#btnDownloadAdvanced").off('click');
+    $("#btnDownloadAdvanced").on('click', function () {
+        if (hasclearedallselections(true)) {
+            return false;
+        }
+        TrackFeature("Download->Advanced Option");
+        buildDownloadAdvanced();
+        $("#advancedDownloadOptions").modal("show");
+    });
+
+    $("#radioTablePopularOrientation").off('change');
+    $("#radioTablePopularOrientation").on('change', function () {
+        TrackFeature("Layout->Orientation->Popular");
+    });
+
+    $("#radioTableCustomOrientation").off('change');
+    $("#radioTableCustomOrientation").on('change', function () {
+        TrackFeature("Layout->Orientation->Custom");
+    });
+
+    $("#radioTableResponsiveTemplate").off('change');
+    $("#radioTableResponsiveTemplate").on('change', function () {
+        TrackFeature("Styles->Template->Responsive");
+    });
+
+    $("#radioTableCustomTemplate").off('change');
+    $("#radioTableCustomTemplate").on('change', function () {
+        TrackFeature("Styles->Template->Custom");
+    });  
+
+    $('#lnkPermReportLink').html(getEncodedUrl());
+    $('#lnkPermReportLink').attr("href", getEncodedUrl());
+
+    if ($('#lnkPermReportReviewLink').length > 0) {
+        $('#lnkPermReportReviewLink').html(getReviewEncodedUrl());
+        $('#lnkPermReportReviewLink').attr("href", getReviewEncodedUrl());
+    }
+
+    $('#tooltipDialog').hide();
+
+    var rpttype = $('#hdnReportType').val().toUpperCase();
+    if (rpttype == 'MAP') {
+        $('#divMapRegionPanel').show();
+        $('#divMapIncomePanel').show();
+    }
+    else {
+        $('#divMapRegionPanel').hide();
+        $('#divMapIncomePanel').hide();
+    }
+
+    $("#btnAssignExistingFolder").off('click');
+    $('#btnAssignExistingFolder').on('click', function () {
+        TrackFeature("Save->Assign To Existing Folder");
+    });
+
+    $("#btnCreateNewFolder").off('click');
+    $('#btnCreateNewFolder').on('click', function () {
+        TrackFeature("Save->Create New Folder");
+    });
+
+    switch (gbl_selectedTabOnSwitch) {
+        case 'liVariables':
+            setActiveTab_Main("#liVariables", "#selection");
+            break;
+        case 'liLayout':
+            setActiveTab_Main("#liLayout", "#reportOptions");
+            break;
+        case 'liStyles':
+            if (rpttype == 'MAP' || rpttype == 'CHART')
+                setActiveTab_Main("#liStyles", "#themes");
+            else
+                setActiveTab_Main("#liVariables", "#selection");
+            break;
+        case 'liEmbed':
+            setActiveTab_Main("#liEmbed", "#embed");
+            break;
+        case 'liShare':
+            setActiveTab_Main("#liShare", "#share");
+            break;
+        case 'liSave':
+            setActiveTab_Main("#liSave", "#save");
+            break;
+        default:
+            break;
+    }
+
+    if ($("#hdnSaveDlg").val() == 1) {
+        setActiveTab_Main("#liSave", "#save");
+        $("#hdnSaveDlg").val(0);
+    }
+    showHideLangBar();
+
+    onNoPreviewSelected();
+
+    resetCustomGrpSel();
+
+    $("#txtSaveReportDesc").keypress(function (e) {
+        return globalValidateKeyChars(e);
+    });
+
+    $("#txtSaveReportTitle").keypress(function (e) {
+        return globalValidateKeyChars2(e);
+    });
+
+    $("#txtNewFolderName").keypress(function (e) {
+        return globalValidateKeyChars(e);
+    });
+
+    $("#txtSaveReportDesc").change(function (e) {
+        var strValue = globalEvalString($("#txtSaveReportDesc").val());
+        $("#txtSaveReportDesc").val(strValue);
+    });
+
+    $("#txtSaveReportTitle").change( function (e) {
+        var strValue = globalEvalString2($("#txtSaveReportTitle").val());
+        $("#txtSaveReportTitle").val(strValue);
+    });
+
+    $("#txtNewFolderName").change(function (e) {
+        var strValue = globalEvalString($("#txtNewFolderName").val());
+        TrackFeature("Save->New folder name");
+        $("#txtNewFolderName").val(strValue);
+    });
+
+    var maxlimitexceeded = checkvariablelimit();
+    if (maxlimitexceeded) {
+        //$("#faded").addClass("cellLimit");
+        $("#faded").show();
+        $(".downloadMsg").show();
+        $(".page-ddl").hide();
+        if ($(".selectionModifyTxt").is(":visible"))
+            $(".selectionModifyTxt").hide();
+        if ($('#divNoDataToDisplay').is(":visible"))
+            $("#divNoDataToDisplay").hide();
+        $(".formatList #liTable,.formatList #liTable a").addClass("disabled");
+        $(".formatList #liTable,.formatList #liTable a").removeClass("active");
+        $(".formatList #liChart,.formatList #liChart a").addClass("disabled");
+        $(".formatList #liMap,.formatList #liMap a").addClass("disabled");
+        $(".formatList #liMetadata,.formatList #liMetadata a").addClass("disabled");
+    }
+    else {
+        //$("#faded").removeClass("cellLimit");
+        $("#faded").hide();
+        $(".downloadMsg").hide();
+        $(".formatList #liTable,.formatList #liTable a").removeClass("disabled");
+        $(".formatList #liChart,.formatList #liChart a").removeClass("disabled");
+        $(".formatList #liMap,.formatList #liMap a").removeClass("disabled");
+        $(".formatList #liMetadata,.formatList #liMetadata a").removeClass("disabled");
+    }
+
+
+    $("body").on("click", function () {
+        $("#downloadDropdown").slideUp();
+    });
+
+    $("#downloadDropdown").click(function (e) {
+        e.stopPropagation();
+    });
+
+}
+
+function doClientOptions(obj, mapcallback) {
+    //debugger;
+    var rpttype = $('#hdnReportType').val().toUpperCase();
+    switch (rpttype) {
+        case 'CHART':
+            setChartOptionsPartial();
+            break;
+        case 'MAP':
+            setMapOptionsPartial(obj);
+            mapcallback('', '', '', true, false, false);
+            break;
+        case 'METADATA':
+            onUpdateMetadataOptionsClick(obj.id);
+            break;
+    }
+}
+
+function attachTrackerEvents(onclicktracker, onchangetracker, onkeypresstracker, onclicktracker_client, onchangetracker_client, onkeypresstracker_client, mapcallback) {
+    //debugger;
+
+    if (onclicktracker != '') {
+        $(onclicktracker).off('click');
+        $(onclicktracker).on('click', function (e) {
+            var clickID;
+            if (e.currentTarget != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "rb_template_orientation1")
+                TrackFeature("Layout->Orientation->Popular->Orientation1");
+            else if (e.currentTarget != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "rb_template_orientation2")
+                TrackFeature("Layout->Orientation->Popular->Orientation2");
+            else if (e.currentTarget != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "rb_template_orientation3")
+                TrackFeature("Layout->Orientation->Popular->Orientation3");
+            else if (e.currentTarget != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "rb_template_orientation4")
+                TrackFeature("Layout->Orientation->Popular->Orientation4");
+            else if (e.currentTarget != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "rb_template_orientation5")
+                TrackFeature("Layout->Orientation->Popular->Orientation5");
+            else if (e.currentTarget != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "row50")
+                TrackFeature("Layout->Display->Row50");
+            else if (e.currentTarget != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "row100")
+                TrackFeature("Layout->Display->Row100");
+            else if (e.currentTarget != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "row250")
+                TrackFeature("Layout->Display->Row250");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkShowNotes")
+                TrackFeature("Layout->Display->Show notes");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkCommaSep")
+                TrackFeature("Layout->Format Numbers->Thousands Separator");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkTableHideEmptyRow")
+                TrackFeature("Layout->Advanced Options->Hide Empty Row");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkTableHideEmptyCol")
+                TrackFeature("Layout->Advanced Options->Hide Empty Column");
+            else if (e.currentTarget != null && e.currentTarget.id == "lblYAxisApplyAll")
+                TrackFeature("Styles->Y-Axis->Set Style->All");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkAllDataValue")
+                TrackFeature("Styles->Y-Axis->Set Style->All->Data Values");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkHideEmptyRows")
+                TrackFeature("Styles->Y-Axis->Hide Missing Values");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkShowDataPointTooltip")
+                TrackFeature("Styles->Tool Tip->Show Tool Tip");
+            
+
+            if (e.button == null) return;
+
+            //debugger;
+            showOptionsChanged();
+        });
+    }
+
+    $('#btnFormatSeries').off('click');
+    $('#btnFormatSeries').on('click', function (e) {        
+        TrackFeature("Layout->Format Numbers->Define format");
+    });
+
+    //$('#btnComparatorReport').off('click');
+    //$('#btnComparatorReport').on('click', function (e) {        
+    //    TrackFeature("Layout->Advanced Options->Select Variables For Comparison");
+    //});
+
+    $('#btnHideColumns').off('click');
+    $('#btnHideColumns').on('click', function (e) {        
+        TrackFeature("Layout->Advanced Options->Choose Columns to Hide");
+    });
+
+    $('#chkShareReport').off('click');
+    $('#chkShareReport').on('click', function (e) {        
+        TrackFeature("Save->Share Report");
+    });
+
+    $('#chkSnapshotSave').off('click');
+    $('#chkSnapshotSave').on('click', function (e) {
+        TrackFeature("Save->SnapShot Share");
+    });
+
+    if (onclicktracker_client != '') {
+        $(onclicktracker_client).off('click');
+        $(onclicktracker_client).on('click', function (e) {
+            if (e.button == null) return;
+
+            if (e.currentTarget != null && e.currentTarget.id == "tabular")
+                TrackFeature("Layout->Orientation->By Variable");
+            else if (e.currentTarget != null && e.currentTarget.id == "transpose")
+                TrackFeature("Layout->Display->Style1");
+            else if (e.currentTarget != null && e.currentTarget.id == "radioMapStyle1")
+                TrackFeature("Layout->Display->Style1");
+            else if (e.currentTarget != null && e.currentTarget.id == "radioMapStyle2")
+                TrackFeature("Layout->Display->Style2");
+            else if (e.currentTarget != null && e.currentTarget.id == "radioMapStyle3")
+                TrackFeature("Layout->Display->Style3");
+            else if (e.currentTarget != null && e.currentTarget.id == "radioMapStyle4")
+                TrackFeature("Layout->Display->Style4");
+            else if (e.currentTarget != null && e.currentTarget.id == "radioCustom")
+                TrackFeature("Layout->Display->Custom style");            
+            else if (e.currentTarget != null && e.currentTarget.id == "lblHidelegend")
+                TrackFeature("Style->Legend->Show Legent");
+            else if (e.currentTarget != null && e.currentTarget.id == "lblShowlegend")
+                TrackFeature("Style->Legend->Hide Legent");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkAutoAdjust")
+                TrackFeature("Layout->Display->CheckAutoAdjust");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkShowZoombar")
+                TrackFeature("Layout->Display->ShowZoombar");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkShowGridLines")
+                TrackFeature("Layout->Display->ShowGridLines");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkShowTooltip")
+                TrackFeature("Layout->Display->ShowTooltip");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkShowDataPointsChart")
+                TrackFeature("Layout->Display->ShowDataPoints");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkShowNavigator")
+                TrackFeature("Layout->Display->ShowNavigator");
+            else if (e.currentTarget != null && e.currentTarget.id == "chkCommaSep")
+                TrackFeature("Layout->Format Numbers->Thousands Separator");
+            else if (e.currentTarget != null && e.currentTarget.parentElement != null && e.currentTarget.parentElement.id == "chartStyles")
+                TrackFeature("Styles->Chart Type & Style->Select Style");
+            else if (e.currentTarget != null && e.currentTarget.parentElement != null && e.currentTarget.parentElement.id == "chkShowChartBorder")
+                TrackFeature("Styles->Chart Area->Show Chart Border");
+            else if (e.currentTarget != null && e.currentTarget.parentElement != null && e.currentTarget.parentElement.id == "chkDottedGridlines")
+                TrackFeature("Styles->Chart Area->Dotted Grid lines");
+            else if (e.currentTarget != null && e.currentTarget.children != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id =="radioEqualValues")
+                TrackFeature("Layout->Display->Equal Values");
+            else if (e.currentTarget != null && e.currentTarget.children != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "radioEqualCountry")
+                TrackFeature("Layout->Display->Equal Country");
+            else if (e.currentTarget != null && e.currentTarget.children != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "rdShowLegend")
+                TrackFeature("Style->Legent->Show Legent");
+            else if (e.currentTarget != null && e.currentTarget.children != null && e.currentTarget.children.length > 0 && e.currentTarget.children[0].id == "rdHideLegend")
+                TrackFeature("Style->Legent->Hide Legent");
+
+            $('#report-loading').show();
+            setTimeout(function () {
+                doClientOptions(this, mapcallback);
+            }, 200);
+            
+        });
+    }
+
+    if (onchangetracker != '') {
+        $(onchangetracker).off('change');
+        $(onchangetracker).on('change', function (e) {
+            var selectedValue;
+            //debugger;
+            if (e.currentTarget != null && e.currentTarget.id == "ddlAllAxis") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0)
+                    selectedValue = e.currentTarget.selectedOptions[0].text;
+                TrackFeature("Styles->Y-Axis->All->Axis->" + selectedValue);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlAllChartType") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0)
+                    selectedValue = e.currentTarget.selectedOptions[0].text;
+                TrackFeature("Styles->Y-Axis->All->Chart Type->" + selectedValue);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "custom-orientation-WDI_Ctry")
+                TrackFeature("Layout->Orientation->Custom->Country");
+            else if (e.currentTarget != null && e.currentTarget.id == "custom-orientation-WDI_Series")
+                TrackFeature("Layout->Orientation->Custom->Series");
+            else if (e.currentTarget != null && e.currentTarget.id == "custom-orientation-WDI_Time")
+                TrackFeature("Layout->Orientation->Custom->Time");
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlNAPref")
+                TrackFeature("Layout->Format Numbers->NA Preference");
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlScale")
+                TrackFeature("Layout->Format Numbers->Scale");
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlPrecision")
+                TrackFeature("Layout->Format Numbers->Precision");
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlTableHierarchy")
+                TrackFeature("Layout->Advanced Options->Hierarchy");
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlTableMRVFunc")
+                TrackFeature("Layout->Advanced Options->Most recent value function");
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlTableMRVInt")
+                TrackFeature("Layout->Advanced Options->Most recent value function periods");
+            
+
+            showOptionsChanged();
+        });
+    }
+
+    if (onchangetracker_client != '') {
+        $(onchangetracker_client).off('change');
+        $(onchangetracker_client).on('change', function (e) {            
+            $('#report-loading').show();
+            var selectedItem;
+            if (e.currentTarget != null && e.currentTarget.id == "ddlChartType") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] !=null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Chart Type & Style->ChartType->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlZoominDataChart") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Chart Area->Zoom In data->" + selectedItem);
+            }
+
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxisprimarylabelfontStyle") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Primary Axis->Label Properties->Font style->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxisprimarylabelfontType") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Primary Axis->Label Properties->Font Type->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxisprimarylabelfontSize") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Primary Axis->Label Properties->Font Size->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxissecondarylabelfontStyle") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Secondary Axis->Label Properties->Font style->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxissecondarylabelfontType") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Secondary Axis->Label Properties->Font Type->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxissecondarylabelfontSize") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Secondary Axis->Label Properties->Font Size->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxisprimarytitlefontStyle") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Primary Axis->Title Properties->Font Style->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxisprimarytitlefontType") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Primary Axis->Title Properties->Font Type->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxisprimarytitlefontSize") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Primary Axis->Title Properties->Font Size->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxissecondarytitlefontStyle") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Secondary Axis->Title Properties->Font Style->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxissecondarytitlefontType") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Secondary Axis->Title Properties->Font Type->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlYaxissecondarytitlefontSize") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Y-Axis->Secondary Axis->Title Properties->Font Size->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlSharedToolTip") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Tool Tip->Type->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlchartLegendFontStyle") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Legend->Show Legend->Font Style->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlchartLegendFontType") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Legend->Show Legend->Font Type->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlchartLegendFontSize") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Legend->Show Legend->Font Size->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlchartLegendVerticalAlign") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Legend->Show Legend->Vertical Align->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "ddlchartLegendHorizontalAlign") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Styles->Legend->Show Legend->Horizondal Align->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "selFontStyle") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Style->Legent->Show Legent->Font Style->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "selFontType") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Style->Legent->Show Legent->Font Type->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "selFontSize") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Style->Legent->Show Legent->Font Size->" + selectedItem);
+            }
+            else if (e.currentTarget != null && e.currentTarget.id == "selLegendPosition") {
+                if (e.currentTarget.selectedOptions != null && e.currentTarget.selectedOptions.length > 0 && e.currentTarget.selectedOptions[0] != null) {
+                    selectedItem = e.currentTarget.selectedOptions[0].text;
+                }
+                TrackFeature("Style->Legent->Show Legent->Legent Position->" + selectedItem);
+            }
+
+            
+            //debugger;
+            doClientOptions(this, mapcallback);
+        });
+    }
+
+    if (onkeypresstracker != '') {
+        $(onkeypresstracker).off('change');
+        $(onkeypresstracker).on('change', function (e) {
+            if (e.currentTarget != null && e.currentTarget.id == "txtReportHeader")
+                TrackFeature("Layout->Table Header & Footer->ReportHeader");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtReportFooter")
+                TrackFeature("Layout->Table Header & Footer->ReportFooter");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtReportNotes")
+                TrackFeature("Layout->Table Header & Footer->ReportNotes");
+
+            showOptionsChanged();
+        });
+    }
+
+    if (onkeypresstracker_client != '') {
+        $(onkeypresstracker_client).off('change');
+        $(onkeypresstracker_client).on('change', function (e) {
+            var activeTab;
+            if (e.currentTarget != null && e.currentTarget.id == "txtWidth")
+                TrackFeature("Layout->Display->Width");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtHeight")
+                TrackFeature("Layout->Display->Height");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtNavigatorHeight")
+                TrackFeature("Layout->Display->NavigatorHeight");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtReportHeader")
+                TrackFeature("Layout->Chart Header&Footer->ReportHeader");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtReportFooter")
+                TrackFeature("Layout->Chart Header&Footer->ReportFooter");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxisPrimarylabelInterval")
+                TrackFeature("Styles->Y-Axis->Primary Axis->Label Properties->Label Interval");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxissecondarylabelrotation")
+                TrackFeature("Styles->Y-Axis->Primary Axis->Label Properties->Label Rotation");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxissecondarylabelInterval")
+                TrackFeature("Styles->Y-Axis->Secondaty Axis->Label Properties->Label Interval");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxissecondarylabelrotation")
+                TrackFeature("Styles->Y-Axis->Secondaty Axis->Label Properties->Label Rotation");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxisprimarypointwidth")
+                TrackFeature("Styles->Y-Axis->Primary Axis->Label Properties->Point Width");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxisprimarygrouppadding")
+                TrackFeature("Styles->Y-Axis->Primary Axis->Label Properties->Group Padding");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxisprimarytitle")
+                TrackFeature("Styles->Y-Axis->Primary Axis->Title Properties->Title");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxisprimarytickInterval")
+                TrackFeature("Styles->Y-Axis->Primary Axis->Title Properties->Tick Interval");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxissecondarytitle")
+                TrackFeature("Styles->Y-Axis->Secondaty Axis->Title Properties->Title");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxissecondarytickInterval")
+                TrackFeature("Styles->Y-Axis->Secondaty Axis->Title Properties->Tick Interval");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxisprimaryscalesettingmin")
+                TrackFeature("Styles->Y-Axis->Primary Axis->Scale Settings->Minimum Value");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxisprimaryscalesettingmax")
+                TrackFeature("Styles->Y-Axis->Primary Axis->Scale Settings->Maximum Value");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxissecondaryscalesettingmin")
+                TrackFeature("Styles->Y-Axis->Secondaty Axis->Scale Settings->Minimum Value");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtYaxissecondaryscalesettingmax")
+                TrackFeature("Styles->Y-Axis->Secondaty Axis->Scale Settings->Maximum Value");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtLowerValue")
+                TrackFeature("Lauout->Display->Data Interval Lower Bound Value");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtLowerLabel")
+                TrackFeature("Lauout->Display->Data Interval Lower Bound Label");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtUpperValue")
+                TrackFeature("Lauout->Display->Data Interval Upper Bound Label");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtUpperLabel")
+                TrackFeature("Lauout->Display->Data Interval Upper Bound Label");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtMapWidth")
+                TrackFeature("Style->Dimensions->Width");
+            else if (e.currentTarget != null && e.currentTarget.id == "txtMapHeight")
+                TrackFeature("Style->Dimensions->Height");
+            $('#report-loading').show();
+            doClientOptions(this, mapcallback);
+        });
+    }
+}
+
+function showOptionsChanged() {
+    $(".selectionModifyTxt").show();
+    $("#faded").show();
+    if ($(".downloadMsg").is(":visible"))
+        $(".downloadMsg").hide();
+    if ($("#divNoDataToDisplay").is(":visible"))
+        $("#divNoDataToDisplay").hide();
+}
+
+function onReportClicked(obj) {
+    gbl_selectedTabOnSwitch = $("#liPrimaryToolTab").find("li.active").attr("id");
+    var previewcurrent = getCookie('preview');
+
+    if (obj.id == 'lnkChart') 
+        TrackFeature("Load Chart");
+    if (obj.id == 'lnkTable')
+        TrackFeature("Load Table");
+    if (obj.id == 'lnkMap')
+        TrackFeature("Load Map");
+    if (obj.id == 'lnkMetadata')
+        TrackFeature("Load Metadata");
+
+    if ($('#hdnReportID').val() == '' && previewcurrent == 'N' && !$(".selectionModifyTxt").is(":visible")) {
+        var isDimensionSelected = 0;
+        $(".selectionCountRHS").each(function () {
+            var val = eval($(this).text());
+            if (val == null || val < 1 || val == '') {
+                isDimensionSelected++;
+            }
+        });
+
+        if (isDimensionSelected == 0) {
+            $('.applyChangesDim').trigger('click');
+        }
+    }
+
+    if (hasclearedallselections(false)) {
+        return false;
+    }
+    if (obj.id == 'lnkChart') {
+        if (hasnesteddimension()) {
+            return false;
+        }
+        var isPageSeries=false;
+        var controlid = $('.variableTable.selectedView[data-type="S"]').attr('data-value')
+        if ($('.page-ddl').attr('id') != null) {
+            if ($('.page-ddl').attr('id').indexOf(controlid) >= 0)
+                isPageSeries = true;
+        }
+        if (gbl_HasIndicatorUnit && !isPageSeries && !validateBookUnits()) {
+            $(".confirmationTxt").show();
+            return false;
+        }
+    }
+    gbl_subnat_loadextent = true;
+
+    return true;
+}
+
+function hasnesteddimension() {
+    var hasnesting = false;
+    $.ajax({
+        type: "POST",
+        url: gbl_report_methods + "/HasNestedDimension",
+        contentType: "application/json; charset=utf-8",
+        data: "{lang: '" + gbl_common_culture + "'}",
+        async: false,
+        dataType: "json",
+        success: function (data) {
+            if (data.d != '') {
+                alert(data.d);
+                hasnesting = true;
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = "ddperror.aspx";
+        }
+    });
+
+    return hasnesting;
+}
+
+function onClearSelections() {
+    var confirmClear = confirm(gbl_msg_clear_selection);
+    if (confirmClear) {
+        $.ajax({
+            type: "POST",
+            url: gbl_report_methods + "/ClearSelections",
+            contentType: "application/json; charset=utf-8",
+            data: "",
+            dataType: "json",
+            success: function (data) {
+                if (data.d == '')
+                    clearselections(false);
+                else
+                    alert(data.d);
+            },
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                window.location.href = "ddperror.aspx";
+            }
+        });
+
+        $("#availableDimensions li").removeClass("selected");
+        listUnselectedVariables(true);
+        $(".clearSelTxt").show();
+        $(".noPreview").hide();
+    }
+}
+
+var gbl_clear_selections = false;
+function clearselections(initialload) {
+    gbl_clear_selections = true;
+
+    if (!initialload) {
+        gbl_array_member_selected = {};
+
+        $('.selectedView').each(function (index, obj) {
+            var controlid = obj.id.replace('tbl_sel_', '');
+            if (controlid == 'MetaAttr' || controlid == 'DBList') return;
+
+            $('#panel_' + controlid + " .selectionCount").html('&nbsp;');
+            $('#tbl_sel_' + controlid).html('');            
+            $('#tbl_' + controlid + ' li.selected input').prop({ checked: false });            
+            $('#tbl_' + controlid + ' li.selected').removeClass('selected');
+            if (gbl_high_freequencyenabled == true && $('#tbl_' + controlid).attr('data-type') == "T") {
+                $('#hfvariableList div.tabcontent ul.availableView' + ' li.selected input').prop({ checked: false });            
+                $('#hfvariableList div.tabcontent ul.availableView' + ' li.selected').removeClass('selected');
+            }
+            //debugger;
+        });
+
+        $(".selectionCountRHS").text("");
+    }
+
+    $('#upReportDD').hide();
+    $('#cbpReportView').hide();
+    $('#divNoDataToDisplay').show();
+    $(".faded").show();
+    $('.report-view').html('');
+
+    //$(".variableTable li").removeClass("selected");
+    //$(".chkSelectElement,.radioSelectElement").prop("checked", false);
+    //$("#reportPlaceholder").html("");
+}
+
+function hasclearedallselections(fromapplydim) {
+    //debugger;
+
+    if (gbl_clear_selections) {
+        var hasclearedall = false;       
+            $('.selectedView').each(function (index, obj) {
+                var controlid = obj.id.replace('tbl_sel_', '');
+                if (controlid == 'MetaAttr' || controlid == 'DBList') return;
+
+                var selectedmembers = gbl_array_member_selected[controlid];
+                if (selectedmembers == null || Object.keys(selectedmembers).length <= 0) hasclearedall = true;
+            });
+        
+
+        if (!hasclearedall && !fromapplydim) {
+            $.ajax({
+                type: "POST",
+                url: gbl_report_methods + "/HasReportSelections",
+                contentType: "application/json; charset=utf-8",
+                data: "",
+                async: false,
+                dataType: "json",
+                success: function (data) {
+                    if (data.d == '')
+                        gbl_clear_selections = false;
+                    else
+                        hasclearedall = true;
+                },
+                error: function (XMLHttpRequest, textStatus, errorThrown) {
+                    window.location.href = "ddperror.aspx";
+                }
+            });
+        }
+
+        //debugger;
+        return hasclearedall;
+    }
+
+    return false;
+}
+
+function onLangSelection(lang) {
+//    var previewcurrent = getCookie('preview');
+
+//    if (($('#hdnReportID').val() != '' || previewcurrent == 'Y' || previewcurrent == '') && hasclearedallselections(false)) {
+//        alert('Please select the dimension members for all dimensions to proceed further.');
+//        return false;
+//    }
+
+    //debugger;
+    /*if (isCustomPostBackRequired()) {
+    doCustomPostBack(onLangSelection, lang);
+    return false;
+    }*/
+    if ($("#hdnuidval").val() == "") {
+        getLangUIDValue(lang, false);
+        return false;
+    }
+
+    /*validateSelectedDimensions();
+    var seldims = document.getElementById('REPO_FEATURES_ID_hdncntrys');
+    if (seldims != null) {
+    validateDimensions();
+    $(seldims).val($(seldims).val().replace(/'/g, "&apos;"));
+    }*/
+
+    var frm = $("#frmMain")[0];
+    var langURL = $("#hdnlangdmn" + lang).val();
+    $("#hdntgurl").val(langURL + $("#hdntgpgnam").val());
+    frm.action = langURL + gbl_common_chglang;
+    $('#__VIEWSTATE').val('');
+    frm.submit(function () { return false; });
+
+    return false;
+}
+
+function getLangUIDValue(lang, islogin) {
+    $.ajax({
+        type: "POST",
+        url: gbl_basepath + "AjaxServices/AjaxReportMethods.asmx/getLangUIDValue",
+        contentType: "application/json; charset=utf-8",
+        data: "",
+        dataType: "json",
+        success: function (data) {
+
+            $("#hdnuidval").val(data.d);
+
+            if (islogin)
+                onLangSelectionLogin(lang);
+            else
+                onLangSelection(lang);
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            $("#hdnuidval").val("");
+            window.location.href = "ddperror.aspx";
+        }
+    });
+}
+
+
+function onLangSelectionLogin(lang) {
+    /*if (isCustomPostBackRequired()) {
+
+    doCustomPostBack(onLangSelectionLogin, lang);
+    return false;
+    }*/
+    if ($("#hdnuidval").val() == "") {
+
+        getLangUIDValue(lang, true);
+        return false;
+    }
+    var frm = $("#frmMain")[0];
+    var langURL = $("#hdnlangdmn" + lang).val();
+
+    $("#hdntgurl").val(gbl_common_loginparam);
+    frm.action = gbl_common_refpath;
+    $('#__VIEWSTATE').val('');
+    frm.submit(function () { return false; });
+
+    return false;
+}
+
+function onLangSelectionLoginWBG(lang) {
+    /*if (isCustomPostBackRequired()) {
+
+    doCustomPostBack(onLangSelectionLogin, lang);
+    return false;
+    }*/
+    if ($("#hdnuidval").val() == "") {
+
+        getLangUIDValue(lang, true);
+        return false;
+    }
+    var frm = $("#frmMain")[0];
+    var langURL = $("#hdnlangdmn" + lang).val();
+
+    $("#hdntgurl").val(gbl_common_loginparam + "&wbguser=y");
+    frm.action = gbl_common_refpath;
+    $('#__VIEWSTATE').val('');
+    frm.submit(function () { return false; });
+
+    return false;
+}
+
+var gbl_map_zoomdown = false;
+var gbl_map_splitter_initial = false;
+function setReportSize(splitter) {
+    switch ($('#hdnReportType').val().toUpperCase()) {
+        case 'TABLE':
+            if (typeof (setTableSize) == typeof (Function)) setTableSize();
+            break;
+        case 'MAP':
+            if (splitter && !gbl_map_splitter_initial && $(".openBtn").is(':visible')) {
+                var currentzoom = map.getZoom();
+                if (currentzoom == 2) {
+                    $('.esriSimpleSliderIncrementButton').trigger('click');
+
+                    gbl_map_zoomdown = true;
+                }
+            }
+            else {
+                if (typeof (setMapSize) == typeof (Function)) setMapSize(true, false);
+                gbl_map_splitter_initial = false;
+            }
+            break;
+        case 'CHART':
+            if (typeof (setChartSize) == typeof (Function)) setChartSize();
+            break;
+        default:
+            break;
+    }
+}
+
+
+function loadReportLabels() {
+    if ($('#dpSelectLabel').val().trim() == 'select') {
+        $('#report-loading').fadeIn(100);
+
+        $('#dpSelectLabel').html('<option>Loading...</option>'); ;
+        $.ajax({
+            type: "POST",
+            url: gbl_report_methods + "/GetReportLabels",
+            contentType: "application/json; charset=utf-8",
+            async: false,
+            data: "",
+            dataType: "json",
+            success: function (data) {
+                $('#dpSelectLabel').html('');
+                if (data.d != '') {
+                    var arrdataset = data.d.split('|');
+
+                    $ctl_label = $('#dpSelectLabel');
+                    if (arrdataset.length >= 1) {
+                        $.each(arrdataset, function (index, item) {
+                            var arritem = item.split('^');
+                            var optval = arritem[0];
+                            var opttxt = arritem[1];
+
+                            $ctl_label.append($('<option></option>').val(optval).html(opttxt));
+                        });
+                    }
+                }
+            },
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                $('#dpSelectLabel').html('');
+                window.location.href = "ddperror.aspx";
+            }
+        });
+
+        $('#report-loading').hide();
+        TrackFeature("Save->Assign to an existing folder->Select folder");
+    }
+}
+
+function onVarTabClick() {
+    setActiveTab_Main("#liVariables", "#selection");
+    gbl_selectedTabOnSwitch = 'liVariables';
+    $('#embedIframeWrapper').hide();
+    $('#divReportContent').show();
+    $('.addRemoveVariables').show();
+}
+
+function onLayoutTabClick() {
+    setActiveTab_Main("#liLayout", "#reportOptions");
+    gbl_selectedTabOnSwitch = 'liLayout';
+    $('#embedIframeWrapper').hide();
+    $('#divReportContent').show();
+    $('.addRemoveVariables').show();
+}
+
+function onStylesTabClick() {
+    setActiveTab_Main("#liStyles", "#themes");
+    gbl_selectedTabOnSwitch = 'liStyles';
+    $('#embedIframeWrapper').hide();
+    $('#divReportContent').show();
+    $('.addRemoveVariables').show();
+}
+
+$('.cancelpromt').on('click', function () {
+    $(".promptSave").hide();
+    $("#faded").hide();
+
+    $('#save').hide();
+    $('#share').hide();
+    $('#embed').hide();
+});
+
+$('.cnfrmpromt').on('click', function () {
+    //$(".promptSave").hide();
+    //$("#faded").hide();
+
+    return RedirectMCSave(gbl_common_login, gbl_tooltip_loginsave, $('input[name=radioLogin]:checked').val());
+});
+
+function onSaveTabClick() {
+    if (!gbl_common_loggedin) {
+        $(".promptSave").show();
+        $("#faded").show();
+        return false;
+    }
+
+    setActiveTab_Main("#liSave", "#save");
+    gbl_selectedTabOnSwitch = 'liSave';
+    $('#embedIframeWrapper').hide();
+    $('#divReportContent').show();
+    $('.addRemoveVariables').show();
+
+    loadReportLabels();
+  
+    var reporttype = $('#hdnReportType').val();
+    var reportdetails = $('#hdnReportDetails').val();
+    if (reportdetails != null && reportdetails != '') {
+        reportdetails = $.parseJSON(reportdetails);
+        if (reportdetails != null && reportdetails.ReportType == reporttype) {
+            $('#txtSaveReportTitle').val(reportdetails.ReportName);
+            $('#txtSaveReportDesc').val(reportdetails.ReportDesc);
+            $('#chkShareReport').prop({ checked: reportdetails.ShareReport });
+            $('#chkSnapshotSave').prop({ checked: reportdetails.Snapshot });
+            $('#dpSelectLabel').val(reportdetails.ReportLabelID);
+        }
+        else {
+            clearReportSave(false);
+        }
+    }
+}
+
+function saveReport(ChangeTableNumber, ConfirmUnPublish, confirmPublish, createReview) {
+    TrackFeature("Save->Save Report");
+    if (confirmPublish) {
+        var msg = "Do you want to overwrite the published report?";
+        if (!$('#chkShareReport')[0].checked) msg = "Share report option is unchecked, and this report's link/widget in any websites will break. Do you want to continue?";
+
+        if (confirm(msg) == false) return;
+    }
+
+    if (hasclearedallselections(false)) {
+        return false;
+    }
+    $('#report-loading').show();
+
+    var reportid = $('#hdnReportID').val();
+    var reporttype = $('#hdnReportType').val();
+
+    var reportdetails = $('#hdnReportDetails').val();
+    if (reportdetails != null && reportdetails != '') {
+        reportdetails = $.parseJSON(reportdetails);
+        if (reportdetails != null && reportdetails.ReportType != reporttype) reportid = '';
+    }
+
+    var reporttitle = $('#txtSaveReportTitle').val();
+    var reportdescription = $('#txtSaveReportDesc').val();
+    var sharereport = $('#chkShareReport').prop('checked');
+    var snapshot = $('#chkSnapshotSave').prop('checked');
+    var newfolder = $('#divLabelSelection label.active').attr('id') == 'btnCreateNewFolder';
+    var labelid = newfolder ? 0 : ($('#dpSelectLabel').val() == null ? 0 : $('#dpSelectLabel').val());
+    var labeltext = newfolder ? $('#txtNewFolderName').val() : $('#dpSelectLabel option:selected').text();
+
+    if (!newfolder && $('#dpSelectLabel option:selected').val() == 'select') {
+        alert(gbl_msg_select_label);
+        $('#report-loading').hide();
+        return false;
+    }
+
+    if (newfolder && labeltext == '') {
+        alert(gbl_msg_new_label);
+        $('#report-loading').hide();
+        return false;
+    }
+    if (snapshot == null)
+        snapshot = false;
+
+    var reportoptions = '';
+    if (reporttype.toUpperCase() == 'MAP') {
+        reportoptions = {
+            Extent: $('#hdnExtentData').val(),
+            BaseMapStyle: $('#hdnBaseMapStyle').val(),
+            LegendDragPosition: $('#hdnLegendDragPosition').val()
+        };
+    }
+    else if (reporttype.toUpperCase() == 'TABLE') {
+        if ($('#hdnTableFormatStyles').val() != '' || $('#hdnTableFormatRows').val()) {
+            reportoptions = {
+                cellstyles: $('#hdnTableFormatStyles').val(),
+                insertrows: $('#hdnTableFormatRows').val()
+            };
+        }
+    }
+
+    if (reportoptions == '') {
+        //Nothing to do
+    }
+    else
+        reportoptions = JSON.stringify(reportoptions);
+
+    $.ajax({
+        type: "POST",
+        url: gbl_report_methods + "/SaveReport",
+        contentType: "application/json; charset=utf-8",
+        data: "{reportid: '" + reportid + "', reporttype: '" + reporttype + "', reporttitle: '" + reporttitle + "', reportdescription: '" + reportdescription +
+                "', sharereport: " + sharereport + ", snapshot: " + snapshot + ", newfolder: " + newfolder + ", labelid: " + labelid +
+                ", labeltext: '" + labeltext + "', reportoptions: '" + reportoptions + "', ChangeTableNumber: " + ChangeTableNumber +
+                ", ConfirmUnPublish: " + ConfirmUnPublish + ", createReview: " + createReview + " }",
+        dataType: "json",
+        success: function (data) {            
+            if (data.d.IsWDIPublish && !data.d.confirmTableNoChange){
+                var change = confirm("WDI Table number already exists. Do you want to overwrite the Table number?");
+                 if(change == true){
+                     saveReport(true, false, false, false);
+                 }
+            }
+
+            if (data.d.IsWDIPublish && !data.d.confirmUnpublishWDIReport) {
+                var change = confirm("Share report option is unchecked and it will remove the table from WDI application, are you sure you want to unpublish this WDI report? Press OK to continue or Cancel to revert.");
+                if (change == true) {
+                    saveReport(false, true, false, false);
+                }
+            }
+            else if (data.d.IsSaved) {
+                $('#divReportSaveSucess').show();
+                $('#divReportSaveFailed').hide();
+                if (data.d.IsReviewCreated) {
+                    $('#reviewrecordexists').show();
+                    $('#reviewlinkdetails').show();
+
+                    $('#lnkPermReportReviewLink').html(getReviewEncodedUrl());
+                    $('#lnkPermReportReviewLink').attr("href", getReviewEncodedUrl());
+
+                    $('#txtReportSaveSucess').text(data.d.SuccessMessage + ". Saved as Review report.");
+                }
+                else {
+                    $('#reviewrecordexists').hide();
+                    $('#reviewlinkdetails').hide();
+                    $('#txtReportSaveSucess').text(data.d.SuccessMessage);
+                }
+                if (newfolder) {
+                    $('#dpSelectLabel').html('');
+                    $('#dpSelectLabel').append($('<option></option>').val('select').html('-Select-'));
+                    loadReportLabels();
+                }
+                $('.reportName').html(reporttitle);
+                $('#hdnReportDetails').val(data.d.ReportDetails);
+                var reportdetails = $.parseJSON(data.d.ReportDetails);
+                $('#hdnReportID').val(reportdetails.ReportID);
+                $('#hdnReportURL').val(reportdetails.ReportURL);
+                $('#lnkPermReportLink').html(getEncodedUrl());
+                $('#lnkPermReportLink').attr('href', getEncodedUrl());
+            }
+            else {
+                $('#divReportSaveSucess').hide();
+                $('#divReportSaveFailed').show();
+                $('#txtReportSaveFailed').text(data.d.ErrorMessage);
+            }
+
+            $('#report-loading').hide();
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = "ddperror.aspx";
+            $('#divReportSaveSucess').hide();
+            $('#divReportSaveFailed').show();
+            $('#txtReportSaveFailed').text(errorThrown);
+
+            $('#report-loading').hide();
+        }
+    });
+}
+
+function clearReportSave(confirmclear) {
+    if (confirmclear) {
+        if (!confirm('Clear the values?')) return;
+    }
+
+    $('#txtSaveReportTitle').val('');
+    $('#txtSaveReportDesc').val('');
+    $('#chkShareReport').prop({ checked: false });
+    $('#chkSnapshotSave').prop({ checked: false });
+    $('#btnAssignExistingFolder').trigger('click');
+    $('#dpSelectLabel').val($("#dpSelectLabel option:first").val());
+    $('#txtNewFolderName').val('');
+    TrackFeature("Save->Clear details");
+}
+
+function onShareTabClick() {
+    $('#embedIframeWrapper').hide();
+    $('#divReportContent').show();
+
+    if (hasclearedallselections(false)) {
+        return false;
+    }
+
+    var isnotsaved = $('#hdnReportURL').val() == '';
+    if (!isnotsaved) {
+        var reporttype = $('#hdnReportType').val();
+        var reportdetails = $('#hdnReportDetails').val();
+        if (reportdetails != null && reportdetails != '') {
+            reportdetails = $.parseJSON(reportdetails);
+            if (reportdetails != null)
+                isnotsaved = reportdetails.ReportType != reporttype;
+            else
+                isnotsaved = true;
+        }
+        else
+            isnotsaved = true;
+    }
+
+    if (isnotsaved) {
+
+        if (!gbl_common_loggedin) {
+            $(".promptSave").show();
+            $("#faded").show();
+            return false;
+        }
+
+        switch ($('#hdnReportType').val().toUpperCase()) {
+            case 'TABLE':
+            case 'METADATA':
+                alert(gbl_msg_save_table);
+                $('#lnkPermReportLink').html(gbl_msg_save_table);
+                break;
+            case 'CHART':
+                alert(gbl_msg_save_chart);
+                $('#lnkPermReportLink').html(gbl_msg_save_chart);
+                break;
+            case 'MAP':
+                alert(gbl_msg_save_map);
+                $('#lnkPermReportLink').html(gbl_msg_save_map);
+                break;
+        }
+
+        setActiveTab_Main("#liSave", "#save");
+
+        //        $('#embed').hide();
+        //        $('#share').hide();
+        //        $('#selection').hide();
+        //        $('#reportOptions').hide();
+        //        $('#themes').hide();
+        //        $('#ctlShareURL').hide();
+        return false;
+    }
+    setActiveTab_Main("#liShare", "#share");
+    gbl_selectedTabOnSwitch = 'liShare';
+    return true;
+}
+
+function ShareOnline(mode)
+{    
+    switch (mode.toLowerCase())
+    {
+        case "facebook":
+            TrackFeature("Share report->Facebook");
+            break;
+        case "twitter":
+            TrackFeature("Share report->twitter");
+            break;
+        case "google":
+            TrackFeature("Share report->google");
+            break;
+    }
+}
+function onEmbedTabClick() {
+    if (onShareTabClick()) {
+        $('#embedIframeWrapper').show();
+        $('#divReportContent').hide();
+        $('.addRemoveVariables').hide();
+        if ($('#hdnReportType').val() == 'METADATA') {
+            $('#divMetadataDimensionDpDwn').show();
+        }
+        else {
+            $('#divMetadataDimensionDpDwn').hide();
+        }
+        showembedloading();
+
+        $("#chartWrapper").attr("src", generateCode());
+        setActiveTab_Main("#liEmbed", "#embed");
+        gbl_selectedTabOnSwitch = 'liEmbed';
+    }
+
+    if ($('#hdnReportType').val().toUpperCase() == 'MAP') {
+        killWidgetByID("tooltipDialog");
+        $('#chkEmbedShowZoombar').prop({ checked: $('#chkShowZoombar').prop('checked') });
+        $('#chkEmbedShowLegend').prop({ checked: $('#divMapLegend label.active input').prop('id') == 'rdShowLegend' });
+
+        $('#chkEmbedShowZoombar').parent().parent().show();
+        $('#chkEmbedShowLegend').parent().parent().show();
+    }
+    else {
+        $('#chkEmbedShowZoombar').parent().parent().hide();
+        $('#chkEmbedShowLegend').parent().parent().hide();
+    }
+}
+
+function Entertwitter() {
+    window.open('http://twitter.com/share?url=' + encodeURIComponent(getEncodedUrl())
+            + '&text=' + encodeURIComponent(getReportDisplayName()), '_new');
+}
+
+function Enterfacebook() {
+    window.open('http://www.facebook.com/share.php?u=' + encodeURIComponent(getEncodedUrl())
+            + '&t=' + encodeURIComponent(getReportDisplayName()), '_new');
+}
+
+function EnterGoogleplus() {
+    window.open('http://plus.google.com/share?url=' + encodeURIComponent(getEncodedUrl())
+            + '&title=' + encodeURIComponent(getReportDisplayName()), '_new');
+}
+
+function getEncodedUrl() {
+    return gbl_basepath + $('#hdnReportURL').val();
+}
+
+function getReviewEncodedUrl() {
+    return gbl_basepath + "embed/" + $('#hdnReportURL').val() + "?review=y";
+}
+
+function getReportDisplayName() {
+    var reportdetails = $('#hdnReportDetails').val();
+    if (reportdetails != null && reportdetails != '') {
+        reportdetails = $.parseJSON(reportdetails);
+        if (reportdetails != null) return reportdetails.ReportName;
+    }
+
+    return '';
+}
+
+function loadMetaData(Name, Code, Type) {
+    var loadingtext = '<div style="width: 100%; text-align: center;">' + $('#report-loading').html() + '<div>';
+    $("#divMetadataCtl div.modal-body").html(loadingtext);
+    $('#divMetadataCtl').attr("selection", "report");
+    AnalyticsControlClick('editreports:metadata', Name + '>' + Code + '>' + Type);
+
+    $.ajax({
+        type: "POST",
+        url: gbl_report_methods + "/PopulateMetaDataJSON",
+        contentType: "application/json; charset=utf-8",
+        data: "{name:'" + Name.replace(/\'/g, "%27") + "', code:'" + Code + "', dimensiontype:'" + Type + "', lang:'" + gbl_common_culture + "'}",
+        dataType: "json",
+        success: function (data) {
+            if (data.d == null || data.d == '') return;
+
+            $("#divMetadataCtl div.modal-body").html(data.d);
+            $('#gdp-meta-data-rpt').css('max-height', Math.round($(window).height() * 0.5) + 'px').css('overflow', 'auto');
+            $('#gdp-meta-data-rpt #metadata-specific-data').css('max-height', '').css('overflow', '');
+            $('#divMetadataCtl .btn-meta-download').show();
+
+            gbl_download_name = Name;
+            gbl_download_code = Code;
+            gbl_download_type = Type;
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = gbl_error_file;
+        }
+    });
+    TrackFeature('Variables->Load Metadata->' + Name);
+}
+
+function loadFootNotes(Code, MRVYearValue) {
+    var loadingtext = '<div style="width: 100%; text-align: center;">' + $('#report-loading').html() + '<div>';
+    $("#divMetadataCtl div.modal-body").html(loadingtext);
+    $('#lblMetadataLabel').html("Footnotes");
+
+    AnalyticsControlClick('editreports:footnote', Code + ':' + MRVYearValue);
+    TrackFeature('Load Footnotes->' + Code);
+    if (Code != null && Code.trim() != "") {
+        $.ajax({
+            type: "POST",
+            url: gbl_report_methods + "/PopulateFootNotesJSON",
+            contentType: "application/json; charset=utf-8",
+            data: "{code:'" + Code + "', lang:'" + gbl_common_culture + "'}",
+            dataType: "json",
+            success: function (data) {
+                if (data.d == null || data.d == '') return;
+
+                $("#divMetadataCtl div.modal-body").html(data.d);
+                if (MRVYearValue != '') $("#gdp-meta-data-rpt").prepend('Data are for : ' + MRVYearValue);
+
+                $('#gdp-meta-data-rpt').css('max-height', Math.round($(window).height() * 0.5) + 'px').css('overflow', 'auto');
+                $('#divMetadataCtl .btn-meta-download').hide();
+            },
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                window.location.href = gbl_error_file;
+            }
+        });
+    }
+    else if (MRVYearValue != null && MRVYearValue.trim() != "") {
+        $("#gdp-meta-data-rpt").prepend('Data are for : ' + MRVYearValue);
+    }
+}
+
+function loadLeastSquareNote(obj) {
+    $("#divMetadataCtl div.modal-body").html($(obj).attr('title'));
+    $('#divMetadataCtl .btn-meta-download').hide();
+}
+
+function onMetadataDownload(obj) {
+    var selection = 'variable';
+    if ($('#divMetadataCtl').attr('selection') != null)
+        selection = $('#divMetadataCtl').attr('selection');    
+    $.ajax({
+        type: "POST",
+        url: gbl_fileinfo_url,
+        cache: false,
+        data: "reqtype=metadata-select&from=" + selection +"&name=" + gbl_download_name + "&code=" + gbl_download_code + "&dimtype=" + gbl_download_type,
+        beforeSend: function () {
+            /*var width = $("#gdp-meta-data-rpt").width();
+            var height = $("#gdp-meta-data-rpt").height();
+            $("#file-loading-rpt").css({
+            top: ((height / 2) - 25),
+            left: ((width / 2) - 50)
+            }).fadeIn(200);*/
+        },
+        complete: function () {
+            //$("#file-loading-rpt").fadeOut(500);
+        },
+        success: function (data) {
+            if (data) {
+                var aryFiles = data.split("&"); //filename=Data_Extract_From World Development Indicators (WDI).zip&filetype=CSV&language=en
+
+                
+                //Adobe Analytics code starts
+                if (aryFiles != null && aryFiles.length > 0) {
+                    var dbname = $(".database h2").text().trim()
+                    var viewtype = 'Table';
+                    if ($(".formatList li.active").attr("id") != null)
+                        viewtype = $(".formatList li.active").attr("id").split("li")[1].trim();
+                    var adobeparams = dbname + ">" + viewtype + ">Metadata>Excel>" + aryFiles[0].replace("filename=", "");
+
+                    AnalyticsControlClick('editreports', 'metadatadownload>' + adobeparams);
+                }
+                //Adobe Analytics ends
+
+                $("#dlgDownloadFrame").get(0).src = gbl_filedown_url + "?" + data;
+            }
+            else {
+                //alert(document.getElementById("hdnMetaDataNotAvail").value);
+                alert('Metadata not available');
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = "ddperror.aspx";
+        }
+    });
+
+    TrackFeature('Variables->Metadata Download->' + gbl_download_name);
+   
+}
+
+function onDataDownload(exporttype) {
+    if (hasclearedallselections(true)) {
+        return false;
+    }
+
+    switch (exporttype.toUpperCase()) {
+        case "EXCEL":
+            TrackFeature("Download->Excel");
+            break;
+        case "CSV":
+            TrackFeature("Download->CSV");
+            break;
+        case "TAB":
+            TrackFeature("Download->Tab");
+            break;
+        case "METADATA":
+            TrackFeature("Download->Metadata");
+            break;        
+    }
+    updatevariablesfordownload();
+    var params;
+    if (exporttype == 'metadata')
+        params = "reqtype=metadata&meta-down-radio=meta-all&excel-format=xlsx";
+    else
+        params = "reqtype=data&data-option-radio=data-download&ddl-excel-format=xlsx&ddl-export-range=full&ddl-data-format=Table&ddl-variable-format=Both&ddl-na-preference=..&ddl-text-delimiter=None&ddl-export-notes=N&down-radio=" + exporttype;
+    $('#report-loading').show();
+    $.ajax({
+        type: "POST",
+        url: gbl_fileinfo_url,
+        cache: false,
+        data: params,
+        beforeSend: function () {
+        },
+        complete: function () {
+            //$("#file-loading-rpt").fadeOut(500);
+        },
+        success: function (data) {
+            if (data) {
+                $("#dlgDownloadFrame").get(0).src = gbl_filedown_url + "?" + data;
+                $('#report-loading').hide();
+                var aryFiles = data.split("&"); //filename=Data_Extract_From World Development Indicators (WDI).zip&filetype=CSV&language=en
+
+                //Adobe Analytics code starts
+                if (aryFiles != null && aryFiles.length > 0) {
+                    var dbname = $(".database h2").text().trim()
+                    var rtype = aryFiles[1].replace("filetype=", "");
+                    var viewtype = 'Table';
+                    if ($(".formatList li.active").attr("id") != null)
+                        viewtype = $(".formatList li.active").attr("id").split("li")[1].trim();
+
+                    var adobeparams = dbname + ">" + viewtype + ">" + rtype + ">" + aryFiles[0].replace("filename=", "");
+
+                    AnalyticsControlClick('editreports', 'datadownload>' + adobeparams);
+                }
+                //Adobe Analytics ends
+            }
+            else {
+                $('#report-loading').hide();
+                alert('Download not available');
+            }
+        },
+        
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = "ddperror.aspx";
+        }
+    });
+}
+
+function Base64ToBytes(base64) {
+    var s = window.atob(base64);
+    var bytes = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) {
+        bytes[i] = s.charCodeAt(i);
+    }
+    return bytes;
+};
+function onFormattedDownload() {
+    if (hasclearedallselections(false)) {
+        return false;
+    }
+
+    TrackFeature("Download->Formated data");
+
+    //Adobe Analytics code starts
+    var dbname = $(".database h2").text().trim()
+    var viewtype = 'Table';
+    if ($(".formatList li.active").attr("id") != null)
+        viewtype = $(".formatList li.active").attr("id").split("li")[1].trim();
+
+    var adobeparams = dbname + ">" + viewtype + ">Excel>Data on this page only - Formatted";
+
+    AnalyticsControlClick('editreports', 'formatteddatadownload>' + adobeparams);
+    //Adobe Analytics ends
+
+
+    __doPostBack('ExportFormattedData', '');
+}
+
+function downloadadvanced() {
+    var exptype = "";
+    if ($("#liDataDownload").hasClass("active")) {
+        var id = $("#downloadFormatTab").find(".radioBtnTabs.active").attr("id");
+        switch (id) {
+            case "lblExcel":
+                exptype = "Excel";
+                break;
+            case "lblTab":
+                exptype = "Tabbed TXT";
+                break;
+            case "lblCSV":
+                exptype = "CSV";
+                break;
+            case "lblSDMX":
+                exptype = "SDMX";
+                break;
+        }
+    }
+    else {
+        exptype = "Excel"; //for metadata download
+    }
+    if (hasclearedallselections(true)) {
+        return false;
+    }
+    updatevariablesfordownload();
+    var reqtype = 'data';
+    var params;
+    var downradio;
+    var dataradio;
+    var dataexport;
+    var ddlexcelformat;
+    var chkscaleprecision;
+    var ddlexportrange;
+    var ddldataformat;
+    var ddlvariableformat;
+    var ddlnapreference;
+    var ddltextdelimiter;
+    var ddlexportnotes;
+    var datasetname;
+    var editmode;
+
+    //debugger;
+    if ($('#liDataDownload').hasClass('active')) {
+        if ($("#hdnDatasetOptions").val() == "Y")
+            editmode = 'on';
+
+        if ($('#lblDownloadComputer').hasClass('active') || !gbl_common_internal)
+            dataradio = 'data-download';
+        else {
+            dataradio = 'data-export';
+            datasetname = $('#txtDatasetName').val();
+            if ($('#txtDatasetName').val() != "") {
+
+                if (!checkSpecialCharacters($('#txtDatasetName'))) {
+                    return false;
+                }
+            }
+            else {
+                $('#txtDatasetName').addClass("ui-state-error");
+                $('#divDatasetSaveSucess').hide();
+                $('#divDatasetSaveFailed').show();
+                $('#txtDatasetSaveFailed').text(gbl_msg_dataset_validation);
+                return false;
+            }
+
+        }
+
+        if ($('#lblExcel').hasClass('active')) {
+            downradio = 'excel';
+            params = 'data-option-radio=' + dataradio + '&down-radio=' + downradio + '&ddl-excel-format=' + $('#ddl-excel-format').val()
+                    + '&ddl-export-range=' + $('#ddl-export-range').val() + '&ddl-data-format=' + $('#ddl-data-format').val()
+                    + '&ddl-variable-format=' + $('#ddl-variable-format').val() + '&ddl-na-preference=' + $('#ddl-na-preference').val()
+                    + '&hdnEditMode=' + editmode + '&ddl-export-notes=' + $('#ddl-export-notes').val() + '&dataset-name=' + datasetname + '&chk-scale-precision=' + ($('#chk-scale-precision').prop('checked') ? 'Y' : 'N');
+        }
+        else if ($('#lblTab').hasClass('active') || $('#lblCSV').hasClass('active')) {
+            if ($('#lblTab').hasClass('active')) downradio = 'tab';
+            else downradio = 'csv';
+
+            params = 'data-option-radio=' + dataradio + '&down-radio=' + downradio + '&ddl-text-delimiter=' + $('#tab-ddl-text-delimiter').val()
+                    + '&ddl-export-range=' + $('#tab-ddl-export-range').val() + '&ddl-data-format=' + $('#tab-ddl-data-format').val()
+                    + '&ddl-variable-format=' + $('#tab-ddl-variable-format').val() + '&ddl-na-preference=' + $('#tab-ddl-na-preference').val()
+                    + '&hdnEditMode=' + editmode + '&ddl-export-notes=' + $('#tab-ddl-export-notes').val() + '&dataset-name=' + datasetname + '&chk-scale-precision=' + ($('#chk-scale-precision').prop('checked') ? 'Y' : 'N');
+        }
+        else if ($('#lblSDMX').hasClass('active')) {
+            downradio = 'sdmx';
+            params = 'data-option-radio=' + dataradio + '&down-radio=' + downradio + '&ddl-sdmx-range=' + $("#ddl-sdmx-range").val() + '&ddl-sdmx-type=' + $("#ddl-sdmx-type").val()
+                    + '&sender-org-name=' + $("#sender-org-name").val() + '&sender-org-id=' + $("#sender-org-id").val() + '&sender-name=' + $("#sender-name").val()
+                    + '&sender-dept=' + $("#sender-dept").val() + '&sender-role=' + $("#sender-role").val() + '&sender-phone=' + $("#sender-phone").val() + '&sender-email=' + $("#sender-email").val()
+                    + '&receiver-org-name=' + $("#receiver-org-name").val() + '&receiver-org-id=' + $("#receiver-org-id").val() + '&receiver-name=' + $("#receiver-name").val()
+                    + '&hdnEditMode=' + editmode + '&receiver-dept=' + $("#receiver-dept").val() + '&receiver-role=' + $("#receiver-role").val() + '&receiver-phone=' + $("#receiver-phone").val() + '&receiver-email=' + $("#receiver-email").val()
+                    + '&sdmx-dataset-name=' + datasetname
+            if (!validateSDMX())
+                return false;
+
+        }
+
+    }
+    //if metadata tab is selected
+    else if ($('#liMetadataDownloadAdvanced').hasClass('active')) {
+        reqtype = 'metadata';
+        var action = '';
+        var excelformat = '';
+        var additionalmetadataparams = '';
+        if ($('#lblCustomMetadata').hasClass('active')) {
+            action = $("#customMetadata label.active").attr("id");
+            action = action.replace('lblMetaCustom', '');
+            var selectedmetatype = $('#selectDimension').val();
+            if (selectedmetatype.indexOf('comb_') == 0) selectedmetatype = selectedmetatype.substring(5);
+
+            var metafilters = getMetadataFilters(selectedmetatype);
+            excelformat = (action == "excel" ? $('#ddlExcelCustomFormat').val() : action);
+            additionalmetadataparams = "&selectedmetatype=" + selectedmetatype + "&metafilters=" + metafilters;
+        }
+        else
+            excelformat = $('#metadata-excel-format').val();
+        params = "meta-down-radio=meta-all&excel-format=" + excelformat + additionalmetadataparams;
+
+    }
+
+    $('#report-loading').show();
+    $.ajax({
+        type: "POST",
+        url: gbl_fileinfo_url,
+        cache: false,
+        data: "reqtype=" + reqtype + "&" + params,
+        beforeSend: function () {
+        },
+        complete: function () {
+        },
+        success: function (data) {
+            $('#report-loading').hide();
+            if (data) {
+
+                if (reqtype != "metadata" && $("#lblDownloadSaveToAccount").hasClass('active')) { //export
+
+                    //Display message to the user
+
+                    if (data.indexOf("Download Error:") == 0) {
+                        $('#divDatasetSaveSucess').hide();
+                        $('#divDatasetSaveFailed').show();
+                        $('#txtDatasetSaveFailed').text(data);
+                        return false;
+                    }
+                    else {
+                        $('#divDatasetSaveSucess').show();
+                        $('#divDatasetSaveFailed').hide();
+                        $('#txtDatasetSaveSucess').text(data);
+                    }
+
+                }
+                else {
+                    var aryFiles = data.split("&"); //filename=Data_Extract_From World Development Indicators (WDI).zip&filetype=CSV&language=en
+
+                    //Adobe Analytics code starts
+                    if (aryFiles != null && aryFiles.length > 0) {
+                        var dbname = $(".database h2").text().trim()
+                        var viewtype = 'Table';
+                        if ($(".formatList li.active").attr("id") != null)
+                            viewtype = $(".formatList li.active").attr("id").split("li")[1].trim();
+
+                        var adobeparams = dbname + ">" + viewtype + ">" + exptype + ">" + aryFiles[0].replace("filename=", "");
+
+                        AnalyticsControlClick('editreports', 'metadatadownload>' + adobeparams);
+                    }
+                    //Adobe Analytics ends
+
+                    $("#dlgDownloadFrame").get(0).src = gbl_filedown_url + "?" + data;
+                }
+
+            }
+            else {
+                $('#report-loading').hide();
+                alert('Download not available');
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = "ddperror.aspx";
+        }
+    });
+
+
+}
+
+
+function validateSDMX() {
+    $("#sdmx_error_message").html("&nbsp;");
+    var sdmx_error_label = "sdmx_error_message";
+
+    // Validation error messages for sdmx download
+    // "eg. 234 567 8910, 234-567-8910, (234)567 8910, +1(234)567-8910"
+    var sdmx_error_label_telephone = $("#hdn_sdmx_error_message_telephone").val();
+    // "eg. data@worldbank.org"
+    var sdmx_error_label_email = $("#hdn_sdmx_error_message_email").val();
+
+
+    var sender_org_name = $("#sender-org-name"),
+        sender_org_id = $("#sender-org-id"),
+        sender_name = $("#sender-name"),
+        sender_dept = $("#sender-dept"),
+        sender_role = $("#sender-role"),
+        sender_phone = $("#sender-phone"),
+        sender_email = $("#sender-email"),
+
+        receiver_org_name = $("#receiver-org-name"),
+        receiver_org_id = $("#receiver-org-id"),
+        receiver_name = $("#receiver-name"),
+        receiver_dept = $("#receiver-dept"),
+        receiver_role = $("#receiver-role"),
+        receiver_phone = $("#receiver-phone"),
+        receiver_email = $("#receiver-email");
+
+
+    var isValid = true;
+
+    isValid = isValid && checkSpecialCharacters(sender_org_name, sdmx_error_label);
+    isValid = isValid && checkSpecialCharacters(sender_org_id, sdmx_error_label);
+    isValid = isValid && checkSpecialCharacters(sender_name, sdmx_error_label);
+    isValid = isValid && checkSpecialCharacters(sender_dept, sdmx_error_label);
+    isValid = isValid && checkSpecialCharacters(sender_role, sdmx_error_label);
+
+    isValid = isValid && checkRegExp(sender_phone, /^(((\+[1-9][0-9]*)?(\([0-9]+\)){1}([0-9]+){1}(\s[0-9]+)+)|((\+[1-9][0-9]*)?(\([0-9]+\)){1}([0-9]+){1}(-[0-9]+)+)|((\+[1-9][0-9]*\s)?([0-9]+){1}(\s[0-9]+)+)|((\+[1-9][0-9]*-)?([0-9]+){1}(-[0-9]+)+))$/g, sdmx_error_label_telephone, sdmx_error_label);
+    isValid = isValid && checkRegExp(sender_email, /^([a-zA-Z0-9_.-])+@(([a-zA-Z0-9-])+.)+([a-zA-Z0-9]{2,6})+$/g, sdmx_error_label_email, sdmx_error_label);
+
+    isValid = isValid && checkSpecialCharacters(receiver_org_name, sdmx_error_label);
+    isValid = isValid && checkSpecialCharacters(receiver_org_id, sdmx_error_label);
+    isValid = isValid && checkSpecialCharacters(receiver_name, sdmx_error_label);
+    isValid = isValid && checkSpecialCharacters(receiver_dept, sdmx_error_label);
+    isValid = isValid && checkSpecialCharacters(receiver_role, sdmx_error_label);
+
+    isValid = isValid && checkRegExp(receiver_phone, /^(((\+[1-9][0-9]*)?(\([0-9]+\)){1}([0-9]+){1}(\s[0-9]+)+)|((\+[1-9][0-9]*)?(\([0-9]+\)){1}([0-9]+){1}(-[0-9]+)+)|((\+[1-9][0-9]*\s)?([0-9]+){1}(\s[0-9]+)+)|((\+[1-9][0-9]*-)?([0-9]+){1}(-[0-9]+)+))$/g, sdmx_error_label_telephone, sdmx_error_label);
+    isValid = isValid && checkRegExp(receiver_email, /^([a-zA-Z0-9_.-])+@(([a-zA-Z0-9-])+.)+([a-zA-Z0-9]{2,6})+$/g, sdmx_error_label_email, sdmx_error_label);
+
+
+    //End
+
+    if (!isValid)
+        return false;
+    else
+        return true;
+
+}
+
+function checkRegExp(field, regexp, errorMessage, errorBanner) {
+    var str = field.val();
+    var isValid = false;
+
+    if (str != "") {
+        if (!(regexp.test(str))) {
+            field.addClass("ui-state-error");
+            //$("#error_message").html(errorMessage);
+            $("#" + errorBanner).html(errorMessage);
+            isValid = false;
+        } else {
+            isValid = true;
+        }
+    }
+    else {
+
+        isValid = true;
+    }
+    return isValid;
+}
+
+function checkSpecialCharacters(field, errorBanner) {
+
+    var str = field.val();
+    var isValid = false;
+
+    if (str != "") {
+        if ((str.indexOf("$") != -1) || (str.indexOf("~") != -1) || (str.indexOf("'") != -1) ||
+		    (str.indexOf("&") != -1) || (str.indexOf("%") != -1) || (str.indexOf("\\") != -1) ||
+		    (str.indexOf("#") != -1) || (str.indexOf("\"") != -1) || (str.indexOf("/") != -1) ||
+		    (str.indexOf("!") != -1) || (str.indexOf("*") != -1) || (str.indexOf("(") != -1) ||
+		    (str.indexOf(")") != -1) || (str.indexOf("+") != -1) || (str.indexOf("{") != -1) ||
+            (str.indexOf("}") != -1) || (str.indexOf("|") != -1) || (str.indexOf(",") != -1) ||
+		    (str.indexOf("<") != -1) || (str.indexOf(">") != -1)) {
+
+            field.addClass("ui-state-error");
+            $("#" + errorBanner).html(document.getElementById('hdnSpecialCharacters').value);
+
+            isValid = false;
+        }
+        else {
+            isValid = true;
+        }
+    }
+    else {
+        isValid = true;
+    }
+
+    return isValid;
+}
+
+
+function getSDMXTypes() {
+
+    $.ajax({
+        type: "POST",
+        async: false,
+        url: gbl_fileinfo_url,
+        cache: false,
+        data: "reqtype=" + "sdmx-type",
+        dataType: "html",
+        success: function (data, textStatus) {
+            if (data != null && data != "") {
+                $("#lblSDMX").show();
+                $("#ddl-sdmx-type").html(data);
+                $("#ddl-sdmx-type").get(0).selectedIndex = 0;
+                setDSD();
+            }
+            else {
+                $("#lblSDMX").hide();
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            $("#down-radio4").hide();
+            $("#down-radio4-label").hide();
+        }
+    });
+}
+
+
+function setDSD() {
+    var selectedType = $("#ddl-sdmx-type option:selected");
+    var dsdname = selectedType.attr("dsdname");
+
+    if (dsdname != null && dsdname.length > 0) {
+        $(".dsd-download").show();
+    }
+    else {
+        $(".dsd-download").hide();
+    }
+
+}
+
+function downloadDSD() {
+
+    var selectedType = $("#ddl-sdmx-type option:selected");
+    var dsdname = selectedType.attr("dsdname");
+    var fileinfo = "?filename=" + dsdname + "&filetype=" + "DSD";
+    $("#dlgDownloadFrame").get(0).src = gbl_filedown_url + fileinfo;
+
+}
+
+
+
+function loadDirectDialog($this, ID) {
+    var href = $this.attr('href')
+    var $target = $('#' + ID)
+    var option = $target.data('modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data())
+
+    $target
+          .modal(option, this)
+          .one('hide', function () {
+              $this.is(':visible') && $this.focus()
+          })
+}
+
+// check if string is HTML
+function isHTML(str) {
+    var a = document.createElement('div');
+    a.innerHTML = str;
+    for (var c = a.childNodes, i = c.length; i--; ) {
+        if (c[i].nodeType == 1) return true;
+    }
+    return false;
+}
+
+function loadDirectMetaData($this, Name, Code, Type) {
+    loadMetaData(Name, Code, Type);
+    loadDirectDialog($this, 'divMetadataCtl');
+
+
+    //        var href    = $this.attr('href')
+    //        var $target = $('#divMetadataCtl')
+    //        var option  = $target.data('modal') ? 'toggle' : $.extend({ remote: !/#/.test(href) && href }, $target.data(), $this.data())
+
+    //        $target
+    //          .modal(option, this)
+    //          .one('hide', function () {
+    //            $this.is(':visible') && $this.focus()
+    //          })
+
+
+
+}
+
+
+function buildFormatSeriesTable() {
+    if (!$('#formatSeries').hasClass('collapse')) {
+        return;
+    }
+    $('#report-loading').show();
+
+    $.ajax({
+        type: "POST",
+        async: false,
+        url: gbl_basepath + "AjaxServices/AjaxReportMethods.asmx/GetModalFormatSeries",
+        contentType: "application/json; charset=utf-8",
+        data: "",
+        dataType: "html",
+        success: function (data) {
+            var JSONData = $.parseJSON(data).d;
+            $("#formatSeries").html(JSONData);
+
+            $('.series-level-scale, .series-level-precision').off('change');
+            $('.series-level-scale, .series-level-precision').on('change', function (obj) {
+                $('#ddlScale').val('..');
+                $('#ddlPrecision').val('..');
+
+                $(".selectionModifyTxt").show();
+                $("#faded").show();
+                if ($(".downloadMsg").is(":visible"))
+                    $(".downloadMsg").hide();
+
+                if (obj.currentTarget.className == "series-level-scale")
+                    TrackFeature("Layout->Format Numbers->Format series->Scale");
+                else
+                    TrackFeature("Layout->Format Numbers->Format series->Precision");
+            });
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = gbl_error_file;
+        }
+    });
+
+    $('#report-loading').hide();
+}
+
+//series scaling settings
+function setSeriesScaling() {
+    var seriesscale = null, seriesprecision = null;
+    if ($('#ddlScale').val() == '..' && $('#ddlPrecision').val() == '..') {
+        seriesscale = new Object();
+        $('.series-level-scale').each(function () {
+            seriesscale[this.id] = this.value;
+        });
+
+        seriesprecision = new Object();
+        $('.series-level-precision').each(function () {
+            seriesprecision[this.id] = this.value;
+        });
+    }
+    return { seriesscale: seriesscale, seriesprecision: seriesprecision };
+}
+
+function buildDownloadAdvanced() {
+
+
+    $('#report-loading').show();
+    $('#divDatasetSaveSucess').hide();
+    $('#divDatasetSaveFailed').hide();
+    $.ajax({
+        type: "POST",
+        async: false,
+        url: gbl_basepath + "AjaxServices/AjaxReportMethods.asmx/GetModalDownload",
+        contentType: "application/json; charset=utf-8",
+        data: "",
+        dataType: "html",
+        success: function (data) {
+            var JSONData = $.parseJSON(data).d;
+            $("#divDownloadAdvanced").html(JSONData);
+            getSDMXTypes();
+            if ($("#hdnDatasetOptions").val() == "Y") {
+                fillDownloadForm();
+            }
+            $('#report-loading').hide();
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = gbl_error_file;
+            $('#report-loading').hide();
+        }
+    });
+
+}
+
+
+function fillDownloadForm() {
+
+    $.ajax({
+        type: "POST",
+        async: false,
+        url: gbl_fileinfo_url,
+        cache: false,
+        data: "reqtype=" + "data-form",
+        dataType: "json",
+        success: function (data, textStatus) {
+
+            if (data) {
+                $("#lblDownloadComputer").removeClass("active");
+                $("#lblDownloadSaveToAccount").addClass("active");
+                $("#saveToAccountOptions").show();
+                var objJson = data[0];
+                var format = objJson.exportFormat;
+
+                if (format.indexOf("SDMX") >= 0) {
+                    $("#lblSDMX").addClass("active");
+                    $("#sdmxOptions").show();
+                    $("#excelOptions").hide();
+                    $("#tabbedTxtOptions").hide();
+                    $("#lblExcel").removeClass("active");
+                    $("#lblCSV").removeClass("active");
+                    $("#lblTab").removeClass("active");
+                    populateSDMXFields(objJson);
+                }
+                else {
+
+                    populateDataFields(objJson);
+                }
+
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            $("#error_message").html("Error retrieving previous selections");
+            $("#hdnEditMode").val("off"); //let user create a new dataset?
+        }
+    });
+
+
+}
+
+
+function populateDataFields(objJson) {
+
+    if (objJson.exportFormat.indexOf("EXCEL") >= 0) {
+
+        $("#radioExcel").attr("checked", "checked");
+        if (objJson.applyScale == "Y") {
+            $("#chk-scale-precision").attr("checked", "checked");
+        }
+        if (objJson.excelFormat.length > 0) {
+            $("#ddl-excel-format option[value='" + objJson.excelFormat + "']").attr("selected", "selected");
+        }
+        $("#ddl-variable-format option[value='" + objJson.variableFormat + "']").attr("selected", "selected");
+        $("#ddl-export-range option[value='" + objJson.exportRange + "']").attr("selected", "selected");
+        $("#ddl-data-format option[value='" + objJson.dataFormat + "']").attr("selected", "selected");
+        $("#ddl-export-notes option[value='" + objJson.exportNotes + "']").attr("selected", "selected");
+        $("#ddl-excel-format option[value='" + objJson.excelFormat + "']").attr("selected", "selected");
+    }
+    else {
+
+        if (objJson.exportFormat.indexOf("TAB") >= 0) {
+            $("#lblTab").addClass("active");
+            $("#tabbedTxtOptions").show();
+            $("#excelOptions").hide();
+            $("#sdmxOptions").hide();
+            $("#lblExcel").removeClass("active");
+            $("#lblCSV").removeClass("active");
+            $("#lblSDMX").removeClass("active");
+
+        }
+        else if (objJson.exportFormat.indexOf("CSV") >= 0) {
+            $("#lblCSV").addClass("active");
+            $("#tabbedTxtOptions").show();
+            $("#excelOptions").hide();
+            $("#sdmxOptions").hide();
+            $("#lblExcel").removeClass("active");
+            $("#lblTab").removeClass("active");
+            $("#lblSDMX").removeClass("active");
+        }
+
+        if (objJson.applyScale == "Y") {
+            $("#tab-chk-scale-precision").attr("checked", "checked");
+        }
+
+        if (objJson.excelFormat.length > 0) {
+            $("#tab-ddl-excel-format option[value='" + objJson.excelFormat + "']").attr("selected", "selected");
+        }
+
+        $("#tab-ddl-variable-format option[value='" + objJson.variableFormat + "']").attr("selected", "selected");
+        $("#tab-ddl-export-range option[value='" + objJson.exportRange + "']").attr("selected", "selected");
+        $("#tab-ddl-data-format option[value='" + objJson.dataFormat + "']").attr("selected", "selected");
+        $("#tab-ddl-na-preference option[value='" + objJson.naPreference + "']").attr("selected", "selected");
+        $("#ddl-text-delimiter option[value='" + objJson.textDelimiter + "']").attr("selected", "selected");
+        $("#tab-ddl-export-notes option[value='" + objJson.exportNotes + "']").attr("selected", "selected");
+    }
+    $("#txtDatasetName").val(objJson.datasetName);
+}
+
+
+function populateSDMXFields(objJson) {
+
+    $("#radioSDMX").attr("checked", "checked");
+
+    $("#ddl-sdmx-type option[value='" + objJson.exportFormat + "']").attr("selected", "selected");
+    $("#ddl-sdmx-range option[value='" + objJson.exportRange + "']").attr("selected", "selected");
+    $("#txtDatasetName").val(objJson.datasetName);
+
+    if (objJson.senderOrgName != null) {
+        $("#sender-org-name").val(objJson.senderOrgName);
+    }
+
+    if (objJson.senderOrgID != null) {
+        $("#sender-org-id").val(objJson.senderOrgID);
+    }
+
+    if (objJson.senderName != null) {
+        $("#sender-name").val(objJson.senderName);
+    }
+
+    if (objJson.senderDept != null) {
+        $("#sender-dept").val(objJson.senderDept);
+    }
+
+    if (objJson.senderRole != null) {
+        $("#sender-role").val(objJson.senderRole);
+    }
+
+    if (objJson.senderPhone != null) {
+        $("#sender-phone").val(objJson.senderPhone);
+    }
+
+    if (objJson.senderEmail != null) {
+        $("#sender-email").val(objJson.senderEmail);
+    }
+
+    if (objJson.receiverOrgName != null) {
+        $("#receiver-org-name").val(objJson.receiverOrgName);
+    }
+
+    if (objJson.receiverOrgID != null) {
+        $("#receiver-org-id").val(objJson.receiverOrgID);
+    }
+
+    if (objJson.receiverName != null) {
+        $("#receiver-name").val(objJson.receiverName);
+    }
+
+    if (objJson.receiverDept != null) {
+        $("#receiver-dept").val(objJson.receiverDept);
+    }
+
+    if (objJson.receiverRole != null) {
+        $("#receiver-role").val(objJson.receiverRole);
+    }
+
+    if (objJson.receiverPhone != null) {
+        $("#receiver-phone").val(objJson.receiverPhone);
+    }
+
+    if (objJson.receiverEmail != null) {
+        $("#receiver-email").val(objJson.receiverEmail);
+    }
+
+}
+
+function RedirectMCSave(linkurl, msg, value) {
+    if (value == 'wbStaffLogin') {
+        window.location = linkurl + '&wbguser=y';
+        return false;
+    }
+    else if (value == 'publicLogin') {
+        window.location = linkurl;
+        return false;
+    }
+}
+
+function DecodeHtml(msg) {
+    if (msg.length > 0) {
+        return msg.replace("&#39;", "'");
+    }
+    else {
+        return msg;
+    }
+}
+
+
+function setActiveTab_Main(tabId, contentId) {
+
+    $(".toolsList li").removeClass("active");
+    $(tabId).addClass("active");
+    $(".tab-pane").hide();
+    $('.report-view').show();
+    $(contentId).show();
+}
+
+function setActiveTab(tabId, contentId) {
+
+    $(tabId).siblings(".radioBtnTabs").removeClass("active");
+    $(tabId).addClass("active");
+
+    $(contentId).siblings(".radioTabContent").hide();
+    $(contentId).show();
+}
+
+
+
+
+
+function onNoPreviewSelected() {
+
+    var reportid = $('#hdnReportID').val();
+    var previewcurrent = getCookie('preview');
+    //to handle forcefully setting preview off condition
+    if (reportid == '' && previewcurrent == "Y" && window.location.href.indexOf("&preview=off") > 0)
+    {
+        setCookie('preview', 'N');
+        previewcurrent = getCookie('preview');
+    }
+
+    if (reportid == '' && (previewcurrent == 'N' && window.location.href.indexOf("&preview=on") <= 0) && loadingCounter < 1) {
+        if ($("#databaseLink").length > 0) {
+            $(".expandPanel:eq(1)").trigger("click");
+        } else {
+            $(".expandPanel:eq(0)").trigger("click");
+
+        }
+        listUnselectedVariables(false);
+        loadingCounter++;
+    }
+
+    if (previewcurrent == "" && (window.location.href.indexOf("&preview=off") > 0 || (querySt('country') == null && querySt('series') == null && querySt('time') == null && querySt('topic') == null))) {
+        if ($("#databaseLink").length > 0) {
+            $(".expandPanel:eq(1)").trigger("click");
+        } else {
+            $(".expandPanel:eq(0)").trigger("click");
+        }
+        listUnselectedVariables(false);
+        loadingCounter++;
+        setCookie('preview', 'N');
+    }
+    if (previewcurrent == "" && (querySt('country') != null || querySt('series') != null || querySt('time') != null || querySt('topic') != null)) {
+        setCookie('preview', 'Y');
+    }
+    previewSwitch();
+}
+
+function querySt(qryparam) {
+    hu = window.location.search.substring(1);
+    gy = hu.split("&");
+    for (i = 0; i < gy.length; i++) {
+        ft = gy[i].split("=");
+        if (ft[0] == qryparam) {
+            return ft[1];
+        }
+    }
+}
+
+
+function listUnselectedVariables(fromClear) {
+//    var previewOn = window.location.href;
+    var unselectedDim = "";
+
+    if (fromClear) {
+        $(".selectionModifyTxt").hide();
+        $(".forDimension").each(function () {
+
+
+            var value = eval($(this).text());
+
+            unselectedDim += "<li> <span class='dot'></span> " + $(this).attr("title").trim() + "</li>";
+
+
+        });
+
+    }
+    else {
+        $(".forDimension").each(function () {
+
+
+            var value = eval($(this).text());
+
+           
+            if (value == "0" || value == null || value == "") {
+
+                unselectedDim += "<li> <span class='dot'></span> " + $(this).attr("title").trim() + "</li>";
+                $("#divNoDataToDisplay").show();
+                $("#cbpReportView").hide();
+                $("#upReportDD").hide();
+                //                $("#faded").hide();
+                $("#faded").show();
+            }
+            else {
+
+                unselectedDim += "<li class='selected'> <span class='glyphicon glyphicon-check'></span> " + $(this).attr("title").trim() + "</li>";
+
+            }
+        });
+
+    }
+
+
+
+        $("#availableDimensions").html(unselectedDim);
+
+
+        if (fromClear) {
+
+            $(".clearSelTxt").show();
+            $(".noPreview").hide();
+            $("#faded").hide();
+        }
+
+
+        else {
+            $(".clearSelTxt").hide();
+            if($('#divNoDataToDisplay').css('display') == 'block')
+                $(".selectionModifyTxt").hide();
+            if ($("#availableDimensions li.selected").length > 0 && $("#availableDimensions li.selected").length < $("#availableDimensions li").length) {// 0 to n-1
+
+                $(".allDimSelected.noPreview").hide();
+                $(".dimSelected.noPreview").show();
+            }
+            else if ($("#availableDimensions li.selected").length == $("#availableDimensions li").length) {// All Selected
+
+                $(".allDimSelected.noPreview").show();
+                $(".dimSelected.noPreview").hide();
+
+
+            }
+//            else if ($("#availableDimensions li.selected").length == 0 && (getCookie('preview')=="Y")) {  //None Selected
+              
+              else if ($("#availableDimensions li.selected").length == 0) { 
+                $(".clearSelTxt").show();
+                $(".noPreview").hide();
+            
+            
+            }
+
+        }
+}
+
+function showHideLangBar() {
+    var elemheight = $('#bannerStrip').outerHeight();
+
+    if ($(".language ul li").length > 0) {
+        $(".language.language-sv").show();
+        elemheight += getHeightAlignTop('.language', elemheight);
+    }
+    else {
+        $(".language.language-sv").hide();
+    }
+    elemheight += getHeightAlignTop(".secondaryHeader", elemheight);
+    elemheight += getHeightAlignTop("#contentWrapper", elemheight);
+}
+
+function getHeightAlignTop(elem, elemheight) {
+    $(elem).css({ "top": elemheight + "px" });
+
+    return $(elem).outerHeight();
+}
+
+    function showCountOnTop() {
+
+
+
+    }
+
+
+function previewSwitch() {
+    TrackFeature("Variables->Database->Preview");
+
+    var previewcurrent = getCookie('preview');
+    if (previewcurrent == 'N') {
+        if ($('#btnDBPreview input[name="previewoption"]:checked').val() != "OFF") setPreviewButton(false);
+    }
+    else if (previewcurrent == 'Y') {
+        if ($('#btnDBPreview input[name="previewoption"]:checked').val() != "ON") setPreviewButton(true);
+        setCookie('preview', 'Y');
+    }
+
+    var bHandledDBSwitch = false;
+    $('#btnDBPreview input[name="previewoption"]').change(function (obj) { 
+        if (bHandledDBSwitch) {
+            bHandledDBSwitch = false;
+            return;
+        }
+        if (getCookie('preview') == 'Y' && $('#btnDBPreview input[name="previewoption"]:checked').val() == "ON") {
+            return;
+        }
+        if (getCookie('preview') == 'N' && $('#btnDBPreview input[name="previewoption"]:checked').val() == "OFF") {
+            return;
+        }
+        if ($('#btnDBPreview input[name="previewoption"]:checked').val() == undefined) {
+            return;
+        }
+
+        TrackFeature("Variables->Database->Preview->" + $('#btnDBPreview input[name="previewoption"]:checked').val());
+
+        if (confirm('If the current report is not saved, please save before proceeding. This will change the database and you may lose your current selections and formatting. Do you wish to proceed?')) {
+            if ($('#btnDBPreview input[name="previewoption"]:checked').val() == "ON") {
+                setCookie('preview', 'Y');
+            }
+            else {
+                setCookie('preview', 'N');
+            }
+
+            var sourcename = $('#tbl_DBList input:checked').parent().attr('source').replace('&', "and");
+            sourcename = encodeCubeName(sourcename).toLowerCase();
+            var rpttype = $('#hdnReportType').val();
+
+            if ($('#btnDBPreview input[name="previewoption"]:checked').val() == "ON")
+                window.location.href = gbl_basepath + "source/" + sourcename + "/Type/" + rpttype + "/preview/on";
+            else
+                window.location.href = gbl_basepath + "source/" + sourcename;
+        }
+        else {
+            bHandledDBSwitch = true;
+            if (getCookie('preview') == 'Y' && $('#btnDBPreview input[name="previewoption"]:checked').val() != "ON") {
+                window.setTimeout(function () { setPreviewButton(true); bHandledDBSwitch = false; }, 100);
+            }
+            else if (getCookie('preview') == 'N' && $('#btnDBPreview input[name="previewoption"]:checked').val() != "OFF") {
+                window.setTimeout(function () { setPreviewButton(false); bHandledDBSwitch = false; }, 100);
+            }
+        }
+    });
+
+
+    $("body").on("click", ".main-title-panel", function () {
+        listUnselectedVariables(false);
+    });
+}
+
+function setPreviewButton(preview) {
+    if (preview) {
+        $('#btnDBPreview input[name="previewoption"][value="ON"]').prop('checked', true);
+        $('#btnDBPreview input[name="previewoption"][value="ON"]').parent().addClass('active');
+        $('#btnDBPreview input[name="previewoption"][value="OFF"]').parent().removeClass('active');
+    }
+    else {
+        $('#btnDBPreview input[name="previewoption"][value="OFF"]').prop('checked', true);
+        $('#btnDBPreview input[name="previewoption"][value="OFF"]').parent().addClass('active');
+        $('#btnDBPreview input[name="previewoption"][value="ON"]').parent().removeClass('active');
+    }
+}
+
+    function setCookie(cname, cvalue, exdays) {
+        var cookieparams = '';
+        if (exdays != null) {
+            var d = new Date();
+            d.setTime(d.getTime() + (exdays * 24 * 60 * 60 * 1000));
+            var cookieparams = "; expires=" + d.toUTCString();
+        }
+        cookieparams += "; path=/; domain=" + gbl_common_FullURL.replace('http://', '').replace('https://', '');
+
+        document.cookie = cname + "=" + cvalue + cookieparams;
+    }
+
+    function getCookie(cname) {
+        var name = cname + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == ' ') c = c.substring(1);
+            if (c.indexOf(name) == 0) return c.substring(name.length, c.length);
+        }
+        return "";
+    }
+
+    function globalValidateKeyChars(e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        //Allowed characters : A-Z a-z 0-9 . _ - % space !@#$%&*()_+-='?./,
+        if ((code >= 32 && code <= 33) || (code >= 35 && code <= 57) || (code >= 63 && code <= 90) || (code >= 97 && code <= 122) || (code == 8) || (code == 61) || (code == 95)) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function globalValidateKeyChars2(e) {
+        var code = (e.keyCode ? e.keyCode : e.which);
+        //Allowed characters : A-Z a-z 0-9 . _ -  space $()_-=?.
+        if ((code == 32) || (code == 36) || (code >= 40 && code <= 41) || (code >= 45 && code <= 46) || (code >= 48 && code <= 57) || (code == 63) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || (code == 8) || (code == 61) || (code == 95)) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    function globalEvalString(strValue) {
+        //Allowed characters : A-Z a-z 0-9 . _ - % space !@#$%&*()_+-='?./
+        if (strValue.search(/[\"\:\;\<\>\[\\\]\^\`\{\|\}\~]+/g) >= 0)
+            strValue = strValue.replace(/[\"\:\;\<\>\[\\\]\^\`\{\|\}\~]+/g, "");
+        return strValue;
+    }
+
+
+    function globalEvalString2(strValue) {
+        //Allowed characters : A-Z a-z 0-9 . _ -  space $()_-=?.
+        if (strValue.search(/[\"\:\;\<\>\[\\\]\^\`\{\|\}\~\/\@\#\%\*\&\!\'\+\,]+/g) >= 0)
+            strValue = strValue.replace(/[\"\:\;\<\>\[\\\]\^\`\{\|\}\~\/\@\#\%\*\&\!\'\+\,]+/g, "");
+        return strValue;
+    }
+
+    /****************************************************************************************************************************/
+    /************************************Comparator related functions moved from advanced****************************************/
+    /****************************************************************************************************************************/
+    function buildComparatorTable() {
+        if (!$('#comparatorReport').hasClass('collapse')) return;
+
+        $('#report-loading').show();
+
+        $.ajax({
+            type: "POST",
+            async: false,
+            url: gbl_basepath + "AjaxServices/AjaxReportMethods.asmx/GetModalComparator",
+            contentType: "application/json; charset=utf-8",
+            data: "",
+            dataType: "html",
+            success: function (data) {
+                var JSONData = $.parseJSON(data).d;
+                $("#comparatorReport").html(JSONData);
+
+                //for the initial selection choose the first one from the list
+                showComparatorTable($("#selectComparatorVariables li:first"));
+
+                $("#selectComparatorVariables li").off('click');
+                $("#selectComparatorVariables li").on('click', function () {
+                    TrackFeature("Layout->Advanced options->Comparator->Select Dimension");
+                    showComparatorTable($(this));
+                });
+
+                $('.comparator-table li input:checkbox').off('click');
+                $('.comparator-table li input:checkbox').on('click', function (e) {
+                    if (e.button == null) return;
+
+                    //debugger;
+                    $(".selectionModifyTxt").show();
+                    $("#faded").show();
+                    if ($(".downloadMsg").is(":visible"))
+                        $(".downloadMsg").hide();
+                });
+
+                if ($("#viewByLbl").length > 0) {
+                    //this is for classification, viewByLbl exists only when we have classification enabled
+                    $("#selectCountryDisplay li").off('click');
+                    $("#selectCountryDisplay li").on('click', function () {
+                        showComparatorTableClassification($(this));
+                    });
+
+                    $('.comparator-table.C input').off('click');
+                    $('.comparator-table.C input').on('click', function () {
+                        //either country or classification can be selected at the same time
+                        //if any one user selects the other selection we need to uncheck
+                        var currenttable = $(this).closest('ul').prop('id');
+                        $('.comparator-table.C').each(function () {
+                            if (this.id != currenttable) $(this).find('input').attr('checked', false);
+                        });
+                        $(".selectionModifyTxt").show();
+                        $("#faded").show();
+                        if ($(".downloadMsg").is(":visible"))
+                            $(".downloadMsg").hide();
+                    });
+                }
+            },
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                window.location.href = "ddperror.aspx";
+            }
+        });
+
+        $('#report-loading').hide();
+    }
+
+    //function when the dropdown for dimension selection changes
+    function showComparatorTable($obj) {
+        var dimension = $obj.find("a").attr("value");
+        var dimensiontype = $obj.find("a").attr("value-type");
+
+        $('#selectedVariable').html($obj.find("a").text());
+        $(".comparator-table").hide();
+        $("#tbComparatorVariables_" + dimension).show();
+
+        if ($("#viewByLbl").length > 0) {
+            if (dimensiontype == "C") {
+                //if classification exists we need to show the classification dropdown
+                $("#viewByLbl").show();
+                $("#viewByDropdown").show();
+
+                //to identify the last selected item - country/classification
+                var currentselected = dimension;
+                $('.comparator-table.C').each(function () {
+                    if ($(this).find('input:checked').length > 0) {
+                        currentselected = $(this).attr("value");
+                    }
+                });
+                //based on the last selection we show the appropriate table. this will in turn call the showComparatorTableClassification
+                $("#selectCountryDisplay li[value=" + currentselected + "]").trigger('click');
+            }
+            else {
+                $("#viewByLbl").hide();
+                $("#viewByDropdown").hide();
+            }
+        }
+    }
+
+    //function when the dropdown for classification changes
+    function showComparatorTableClassification($obj) {
+        var dimension = $obj.find("a").attr("value");
+        var dimensiontype = $obj.find("a").attr("value-type");
+
+        $('#selectedViewBy').html($obj.find("a").text());
+
+        $(".comparator-table").hide();
+        $("#tbComparatorVariables_" + dimension).show();
+    }
+
+
+    function inputFocus_DefaultText(i) {
+        if (i.value == i.defaultValue) { i.value = ""; i.style.color = "#000"; }
+    }
+
+    function inputBlur_DefaultText(i) {
+        if (i.value == "") { i.value = i.defaultValue; i.style.color = "#888"; }
+    }
+
+    String.prototype.replaceAll = function (search, replacement) {
+        var target = this;
+        return target.split(search).join(replacement);
+    };
+
+    function encodeCubeName(cubename) {
+        return cubename.replaceAll("-", "^").replaceAll(" ", "-").replaceAll("/", "|");
+    }
+
+function CreateAdobeText(adobeDim) {
+    var adobeText = "";
+    var dimName = "";
+    adobeText = "Database:" + adobeDim.databaseName + ";";
+    $.each(adobeDim.Dimensions, function (key, val) {
+        dimName = $('#tbl_' + key).attr('data-text');
+        for (var i = 0; i < val.length; i++) {
+            adobeText = adobeText + dimName + ":" + val[i] + ";";
+        }
+    });
+    adobeText = adobeText.substring(0, adobeText.length - 1);
+    wbgData.misc.dataFilters = adobeText;
+    }
+
+function FilterDimensions() {
+    var dimension;
+    var parentDimension;
+    var parentdimensionList;
+    var SelectedParentDim;
+    var selectionParentDimValue;
+    var dimensionParents;
+    var dimensionParentsList;
+    var filterCollection = $('#divReportContent #upReportDD select');
+    if (filterCollection && filterCollection.length > 0) {
+        for (var i = 0; i < filterCollection.length; i++) {
+            dimension = filterCollection[i];
+            parentDimension = dimension.getAttribute('parentdim');
+            if (parentDimension && parentDimension.trim() != "" && dimension.options.length > 0) {
+                parentdimensionList = filterCollection
+                    .filter(function (index) {
+                        return this.getAttribute('Dimension') == parentDimension;
+                    });
+
+                if (parentdimensionList && parentdimensionList.length > 0) {
+                    SelectedParentDim = $(parentdimensionList[0].options).filter(function (index) {
+                        return this.selected == true;
+                    });
+
+                    if (SelectedParentDim && SelectedParentDim.length > 0) {
+                        selectionParentDimValue = SelectedParentDim[0].value;
+                        if (selectionParentDimValue && selectionParentDimValue.trim() != "") {
+                            selectionParentDimValue = selectionParentDimValue.split('&')[1];
+                            selectionParentDimValue = selectionParentDimValue.substring(1, selectionParentDimValue.length - 1);
+                            for (var j= 0; j < dimension.options.length;j++)
+                            {
+                                dimensionParents = dimension.options[j].getAttribute('parentmember');
+                                dimensionParents = dimensionParents.split(/[\s,]+/).join();
+                                dimensionParentsList = dimensionParents.split(',');
+                                if (dimensionParentsList.indexOf(selectionParentDimValue) < 0) {
+                                    dimension.options[j].classList.add("hiddimension");
+                                }
+                                else {
+                                    dimension.options[j].classList.remove("hiddimension");
+                                }
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+
+    }
+}

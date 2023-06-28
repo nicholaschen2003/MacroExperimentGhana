@@ -1,0 +1,41 @@
+
+.ie8 hr,.ie7 hr,.ie9 hr{
+	border-bottom:1px solid #ddd;
+	height: 1px;
+  
+	 margin:10px 0
+	}
+	.ie8 hr.dottedBdr,.ie7 hr.dottedBdr,.ie9 hr.dottedBdr{
+ border-bottom:1px dotted #555; height:1px; background-image:none!important;/* margin-left:-15px; margin-right:-15px*/
+	}
+	
+	
+.ie8 .actionBtn,.ie7 .actionBtn	{ background: url("../../images/btn-bg-sprite.png") repeat-x scroll 0 -73px}
+.ie8 .dropDownWrapper,.ie7 .dropDownWrapper,.ie8 .filterTree,.ie7 .filterTree{ border:1px solid #d9dccf}
+
+
+.ie8 .toolsList li.active a:after,.ie7 .toolsList li.active a:after,.ie9 .toolsList li.active a:after{ display:none}
+
+.ie8 .toolsList li.active a,.ie7 .toolsList li.active a,.ie9 .toolsList li.active a{
+   background: url("../../images/g03v1-global-navigation.png") repeat scroll center -227px; position:relative; z-index:0; height:35px; border:none!important }
+   
+.ie8 .toolsList li.active,.ie7 .toolsList li.active{ overflow:visible!important}
+.ie9 .toolsList li,.ie8 .toolsList li,.ie7 .toolsList li{ position:relative; top:7px;}
+
+.ie8  #createCustomGroupAcc .panel-body,.ie8 #createCustomIndiAcc .panel-body,.ie8 #createTimeFunctionAcc .panel-body,.ie7  #createCustomGroupAcc .panel-body,.ie7 #createCustomIndiAcc .panel-body,.ie7 #createTimeFunctionAcc .panel-body { border:8px solid #808080}
+
+.ie8 .formatList li.active a:after,.ie7 .formatList li.active a:after{ display:none} 
+.ie8 .formatList li.active,.ie7 .formatList li.active{ background:url("../../images/arrowUp.png") bottom center no-repeat}
+
+.ie9 #contentWrapper, .ie8 #contentWrapper{ width:100%} 
+.ie9 body, .ie8 body{ width:100%;} 
+.ie9 .clearfix, .ie8 .clearfix{ clear:both}
+
+.ie9 .footerStrip, .ie8 .footerStrip{ margin:0; width:100%}
+
+/*.ie8 .radioBtnTabs.active, label.btn.active{ filter:none; background-color:#FFF}*/
+
+.ie8 .customGroup .panel-body{ border-top:1px solid #ddd!important}
+
+.ie7 body{ display:none}
+.ie9 .secondaryHeader,.ie8 .secondaryHeader,.ie7 .secondaryHeader {background-image:url("../../images/secHeaderBg.png"); background-repeat:repeat-x}

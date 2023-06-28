@@ -1,0 +1,453 @@
+﻿$(document).ready(function () {
+    initCustomCtl();
+    var dimtype; 
+    $("#aggRuleTxt").show();
+    $("#seriesTable").addClass("aggregationRuleView");
+
+    $('#txtCtryMetadata').off('blur');
+    $('#txtCtryMetadata').on('blur', function (e) {
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Create custom Group->Metadata(Optional)');
+    });
+
+    $('#chkCtryDisplay').off('click');
+    $('#chkCtryDisplay').on('click', function (e) {      
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Create custom Group->Display ' + getPanelHeading(this) + ' List');
+    });
+
+    $('.aggrmethod').off('change');
+    $('.aggrmethod').on('change', function (e) {        
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Define Aggregation Rule->Set rule for each indicator->Indicator rule');
+    });
+
+    $('.weighind').off('change');
+    $('.weighind').on('change', function (e) {        
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Define Aggregation Rule->Set rule for each indicator->Weighted Indicator');
+    });
+
+    $('.txt-percen').off('blur');
+    $('.txt-percen').on('blur', function (e) {        
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Define Aggregation Rule->Set rule for each indicator->Value %');
+    });
+
+    $('#txtTimeMetadata').off('blur');
+    $('#txtTimeMetadata').on('blur', function (e) {        
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Create Time Function->Additional Options->Metadata(Optional)');
+    });
+
+    $('#txtIndMetadata').off('blur');
+    $('#txtIndMetadata').on('blur', function (e) {
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Create Custom Indicator->Additional Options->Metadata(Optional)');
+    });
+
+    $('#chkTimeDisplayDef').off('click');
+    $('#chkTimeDisplayDef').on('click', function (e) {
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Create Time Function->Additional Options->Display function definition');
+    });
+
+    $('#chkTimeHideTitle').off('click');
+    $('#chkTimeHideTitle').on('click', function (e) {
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Create Time Function->Additional Options->Hide title');
+    });
+
+    $('#chkTimeHideLabel').off('click');
+    $('#chkTimeHideLabel').on('click', function (e) {
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Create Time Function->Additional Options->Hide label');
+    });
+
+    $('#chkIndDisplay').off('click');
+    $('#chkIndDisplay').on('click', function (e) {
+        dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+        TrackFeature('Variables->' + getPanelHeading(this) + '->Create Custom Indicator->Additional Options->Display Series List');
+    });
+
+    
+
+
+    
+    
+    
+});
+
+/**************************************************************************************************************************************************/
+/***************************************************Custom Group functions*************************************************************************/
+/**************************************************************************************************************************************************/
+function initCustomCtl() {
+    $(".panel").on("click", ".plusIcon", function (e) {
+        var uniqueid = $(this).parent().attr('uniqueid');
+        var formulaname = $(this).parent().attr('formulaname');
+        if ($(this).parents(".panel").find(".customGroupElements li[uniqueid='" + uniqueid + "']").length <= 0) {
+            var item = "<li uniqueid='" + uniqueid + "' " + (formulaname != null ? "formulaname='" + formulaname + "' " : "") + "><a href='javascript:void(0)' onclick='deleteItem(this)' ><span class='glyphicon glyphicon-remove-circle'></span></a>" + $(this).siblings(".value").text() + "</li>";
+            $(this).parents(".panel").find(".customGroupElements").append(item);
+            TrackFeature("Variables->" + getPanelHeading(this) + "->Add " + $(this).siblings(".value").text() + " to the custom group");
+        }
+    });
+}
+
+function addCustomGroup(controlid) {
+    //debugger;    
+    if (gbl_array_member_selected[controlid] == null) {
+        gbl_array_member_selected[controlid] = {};
+        GenarateAdobeDimensions(controlid);
+    }
+    var selectedMembers = gbl_array_member_selected[controlid];
+
+    var group_functionname = $('#txtCustomGroupName').val().trim();
+    var group_unames = $.map($('#customGroupCountries li'), function (el) {
+        return $(el).attr('uniqueid');
+    });
+    var group_countries = $.map($('#customGroupCountries li'), function (el) {
+        return $(el).text();
+    });
+    var group_metainfo = $('#txtCtryMetadata').val();
+    var group_displaydef = $('#chkCtryDisplay').prop('checked');
+
+    var obj_group = {}, obj_group_details = {}, obj_group_old = null;
+
+    if (group_functionname == '') {
+        alert('Please enter group title.');
+        return;
+    }
+
+    obj_group_old = selectedMembers['custom_' + group_functionname];
+    if (obj_group_old != null) {
+        if (!confirm('Custom Group already exists. Do you want to overwrite?')) {
+            return;
+        }
+    }
+
+    obj_group['displayname'] = group_functionname;
+    obj_group['custom'] = true;
+
+    obj_group_details['unames'] = group_unames;
+    obj_group_details['countries'] = group_countries;
+    obj_group_details['metainfo'] = htmlEncode(group_metainfo);
+    obj_group_details['displaydef'] = group_displaydef;
+
+    obj_group['customdefinition'] = obj_group_details;
+    selectedMembers['custom_' + group_functionname] = obj_group;
+    GenarateAdobeDimensions(controlid);
+
+    var targetId = "#tbl_" + controlid;
+    addCustomMember(controlid, targetId, obj_group, true, "editCustomGroup", false, 'Group');
+    getSelectedCount(controlid, targetId);
+
+    clearCustomGroup(this);
+    showSelectionsChanged(controlid);
+    TrackFeature("Variables->" + getPanelHeading(this) + "->Add Custom group->" + group_functionname);
+}
+
+function clearCustomGroup(obj) {
+    $('#txtCustomGroupName').val('');
+    $('#customGroupCountries').html('');
+    $('#txtCtryMetadata').val('');
+    $('#chkCtryDisplay').prop({ checked: false });
+    TrackFeature("Variables->" + getPanelHeading(obj) + "->Clear Custom group");
+}
+
+function editCustomGroup(controlid, group_functionname) {
+    if (gbl_array_member_selected[controlid] == null) {
+        gbl_array_member_selected[controlid] = {};
+        GenarateAdobeDimensions(controlid);
+    }
+    var selectedMembers = gbl_array_member_selected[controlid];
+    var obj_group = selectedMembers['custom_' + group_functionname];
+    var obj_group_details = obj_group.customdefinition;
+
+    $('#txtCustomGroupName').val(obj_group['displayname']);
+
+    $('#txtCtryMetadata').val(htmlDecode(obj_group_details['metainfo']));
+    $('#chkCtryDisplay').prop({ checked: obj_group_details['displaydef'] });
+
+    var group_countries = obj_group_details['countries'];
+    var item = "";
+
+    $.each(obj_group_details['unames'], function (index, obj) {
+        //debugger;
+        item = item + "<li uniqueid='" + obj + "'><a href='javascript:void(0)' onclick='deleteItem(this)' ><span class='glyphicon glyphicon-remove-circle'></span></a>" + group_countries[index] + "</li>"
+     
+    });
+    $("#customGroupCountries").html(item);
+
+    if ($("#customGroup_" + controlid).parents("#zoomModalBody").hasClass("modal-body")) {
+
+        $("#zoomModalBody").find(".openBtnModal").trigger("click");
+
+
+    }
+
+    if ($('#customGroup_' + controlid + ' div div.panel-heading a').hasClass('collapsed'))
+        $('#a_cg_' + controlid).trigger('click');
+
+    TrackFeature("Variables->" + getPanelHeading(this) + "->Edit Custom group->" + group_functionname);
+}
+
+/**************************************************************************************************************************************************/
+/***********************************************Aggregation rule functions*************************************************************************/
+/**************************************************************************************************************************************************/
+
+function setAggrRuleDetails(obj, controlid) {
+    if (!$(obj).hasClass('collapsed')) return;
+
+    //debugger;
+    if (gbl_array_data == null) return;
+    if (Object.keys(gbl_array_data).length <= 0) return;
+
+    if (gbl_array_member_selected[controlid] == null) {
+        gbl_array_member_selected[controlid] = {};
+        GenarateAdobeDimensions(controlid);
+    }
+    var selectedMembers = gbl_array_member_selected[controlid];
+    var datakey =$.grep(Object.keys(gbl_array_data), function (key, index) {
+        return (gbl_array_data[key].DT == "S" && key == controlid + "_" + gbl_array_data[key].DH);
+    });
+    if (datakey.length <= 0) return;
+    var dimensiondata = gbl_array_data[datakey[0]];
+
+    //debugger;
+    $('#tb-indicatorAggRule tbody').html('');
+    $.each(selectedMembers, function (key, obj) {
+        //debugger;
+        var rowhtml = '<tr uniqueid=' + key + '><td>' + obj.displayname + '</td>';
+        rowhtml += '<td><select class="w60 aggrmethod"><option value="NONE">None</option><option value="MEAN">Mean</option><option value="MEDIAN">Median</option><option value="MIN">Min</option><option value="SUM">Sum</option></select></td>';
+        rowhtml += '<td><select class="w60 weighind"><option>None</option></select></td>';
+        rowhtml += '<td><input type="text" class="form-control txt-percen"></td></tr>';
+
+        $('#tb-indicatorAggRule tbody').append(rowhtml);
+
+        if (obj.AggregationRule != null) {
+            $("#tb-indicatorAggRule tr[uniqueid='" + key + "'] select.aggrmethod").val(obj.AggregationRule.AggregationMethod);
+            $("#tb-indicatorAggRule tr[uniqueid='" + key + "'] input.txt-percen").val(obj.AggregationRule.AggregationPer);
+        }
+    });
+
+    if (dimensiondata.ARA != null) {
+        $('#lblApplyAll').addClass('active');
+        $('#lblChooseForAll').removeClass('active');
+        $('#divApplyAll').show();
+        $('#divChooseForAll').hide();
+
+        $('#divApplyAll select.aggrmethod').val(dimensiondata.ARA.AggregationMethod);
+        $('#divApplyAll input.txt-percen').val(dimensiondata.ARA.AggregationPer);
+    }
+    else {
+        $('#lblApplyAll').removeClass('active');
+        $('#lblChooseForAll').addClass('active');
+        $('#divApplyAll').hide();
+        $('#divChooseForAll').show();
+    }
+    var dimtype = $(this).parents(".panel").find(".availableView").attr("data-type");
+    TrackFeature('Variables->' + getPanelHeading(this) + '->Define Aggreagation Rule');
+
+}
+
+/**************************************************************************************************************************************************/
+/***********************************************Custom Indicator functions*************************************************************************/
+/**************************************************************************************************************************************************/
+function clearCustomIndicator() {
+    $('#customIndicators').html('');
+    $('#txtCustomIndicatorName').val('');
+    $('#txtIndMetadata').val('');
+    $('#chkIndDisplay').prop({ checked: false });
+    TrackFeature('Variables->Series->Create Custom Indicator->Clear');
+}
+
+function addIndicatorItem(item) {
+    var targetList = '#customIndicators';
+    var targetText = $(item).text();
+
+    switch (targetText) {
+        case 'DEL':
+            $(targetList).find('li:last').remove();
+            break;
+        case 'PWR':
+            $(targetList).append("<li>Pwr</li>")
+            break;
+        default:
+            $(targetList).append("<li>" + targetText + "</li>")
+            break;
+    }
+}
+
+function addCustomIndicator(controlid) {
+    var cubeid = $('#hdnCubeID').val();
+    var ind_functionname = $('#txtCustomIndicatorName').val().trim();
+
+    if (gbl_array_member_selected[controlid] == null) {
+        gbl_array_member_selected[controlid] = {};
+        GenarateAdobeDimensions(controlid);
+    }
+    var selectedMembers = gbl_array_member_selected[controlid];
+
+    var obj_ind_old = selectedMembers['custom_' + ind_functionname];
+    if (obj_ind_old != null) {
+        if (!confirm('Custom Indicator already exists. Do you want to overwrite?')) {
+            return;
+        }
+    }
+
+    //debugger;
+    checkCustomIndicator(true, controlid);
+    TrackFeature('Variables->Series->Create Custom Indicator->Add');
+}
+
+function addCustomIndicator_Valid(controlid, functionname, formula, formula_text, formulaname) {
+    if (gbl_array_member_selected[controlid] == null) {
+        gbl_array_member_selected[controlid] = {};
+        GenarateAdobeDimensions(controlid);
+    }
+    var selectedMembers = gbl_array_member_selected[controlid];
+    var ind_metainfo = $('#txtIndMetadata').val();
+    var ind_displaydef = $('#chkIndDisplay').prop('checked');    
+    var obj_indicator = {}, obj_indicator_details = {}, obj_indicator_old = null;
+
+    obj_indicator['displayname'] = functionname;
+    obj_indicator['custom'] = true;
+
+    obj_indicator_details['formula'] = formula;
+    obj_indicator_details['formulaname'] = formulaname;
+    obj_indicator_details['formulatext'] = formula_text;
+    obj_indicator_details['metainfo'] = htmlEncode(ind_metainfo);
+    obj_indicator_details['displaydef'] = ind_displaydef;
+
+    obj_indicator['customdefinition'] = obj_indicator_details;
+    selectedMembers['custom_' + functionname] = obj_indicator;
+    GenarateAdobeDimensions(controlid);
+
+    var targetId = "#tbl_" + controlid;
+    addCustomMember(controlid, targetId, obj_indicator, true, "editCustomIndicator", true, 'Indicator');
+    getSelectedCount(controlid, targetId);
+
+    clearCustomIndicator();
+    showSelectionsChanged(controlid);
+}
+
+function editCustomIndicator(controlid, functionname) {
+    if (gbl_array_member_selected[controlid] == null) {
+        gbl_array_member_selected[controlid] = {};
+        GenarateAdobeDimensions(controlid);
+    }
+    var selectedMembers = gbl_array_member_selected[controlid];
+    var obj_ind = selectedMembers['custom_' + functionname];
+    var obj_ind_details = obj_ind.customdefinition;
+
+    $('#txtCustomIndicatorName').val(obj_ind['displayname']);
+
+    $('#txtIndMetadata').val(htmlDecode(obj_ind_details['metainfo']));
+    $('#chkIndDisplay').prop({ checked: obj_ind_details['displaydef'] });
+
+    var formulatext = obj_ind_details['formulatext'];
+    var formula = obj_ind_details['formula'];
+    formula = formula.split('`');
+    formula = formula.filter(function (v) { return v.trim() !== '' });
+
+    var arrformulatext = formulatext.split('`');
+    if (arrformulatext.length < formula.length) {
+        arrformulatext = formula.slice();
+        var skipformula = false;
+
+        $.each(formula, function (index, obj) {
+            if (!skipformula) {
+                formulatext = formulatext.trim();
+
+                if (formulatext.indexOf(obj) == 0) {
+                    formulatext = formulatext.replace(obj, "");
+                }
+                else if (formulatext.indexOf('[') == 0 && formulatext.indexOf(']') > 0) {
+                    var iend = formulatext.indexOf(']') + 1;
+                    arrformulatext[index] = formulatext.substring(0, iend);
+                    formulatext = formulatext.substring(iend);
+                }
+                else {
+                    skipformula = true;
+                }
+            }
+        });
+
+        if (skipformula) arrformulatext = formula;
+    }
+
+    $("#customIndicators").html('');
+    $.each(formula, function (index, obj) {
+        //debugger;
+        
+        var item = "<li uniqueid='" + obj + "'>" + arrformulatext[index] + "</li>"
+        $("#customIndicators").append(item);
+    });
+
+//    if ($('#customIndicator_' + controlid + ' div div.panel-heading a').hasClass('collapsed'))
+    //        $('#customIndicator_' + controlid + ' div div.panel-heading a').trigger('click');
+
+    if ($("#customGroup_" + controlid).parents("#zoomModalBody").hasClass("modal-body")) {
+
+        $("#zoomModalBody").find(".openBtnModal").trigger("click");
+
+
+    }
+
+    if ($('#customIndicator_' + controlid + ' div div.panel-heading a').hasClass('collapsed'))
+        $('#a_cg_' + controlid).trigger('click');
+}
+
+function checkCustomIndicator(addtolist, controlid) {
+    var cubeid = $('#hdnCubeID').val();
+    var ind_functionname = $('#txtCustomIndicatorName').val();
+    var ind_formula = '';
+    var ind_formula_text = '';
+
+    if (ind_functionname == '') {
+        alert('Please enter indicator title.');
+        return;
+    }
+
+    $('#report-loading').fadeIn();
+    $('#customIndicators li').each(function () {
+        ind_formula += "`";
+        if (ind_formula_text != '') ind_formula_text += "`";
+
+        if ($(this).attr('formulaname') != null && $(this).attr('formulaname') != '')
+            ind_formula += $(this).attr('formulaname');
+        else if ($(this).attr('uniqueid') != null && $(this).attr('uniqueid') != '')
+            ind_formula += $(this).attr('uniqueid');
+        else
+            ind_formula += $(this).text();
+
+        ind_formula_text += $(this).text();
+    });
+
+    $.ajax({
+        type: "POST",
+        url: gbl_report_methods + "/ValidateCustomIndicator",
+        async: false,
+        contentType: "application/json; charset=utf-8",
+        data: "{cubeid:'" + cubeid + "', controlid:'" + controlid + "', custommembername:'" + ind_functionname + "', custommemberformula:'" + ind_formula + "'}",
+        dataType: "json",
+        success: function (data) {
+            //debugger;
+            if (data.d.formulaname == '') {
+                alert(data.d.errordata);
+            }
+            else {
+                if (addtolist)
+                    addCustomIndicator_Valid(controlid, ind_functionname, ind_formula, ind_formula_text, data.d.formulaname);
+                else
+                    alert('Validated successfully');
+            }
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = gbl_error_file;
+        }
+    });
+    $('#report-loading').fadeOut();
+    TrackFeature('Variables->Series->Create Custom Indicator->Validate');
+
+}

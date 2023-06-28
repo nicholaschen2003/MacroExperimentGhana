@@ -1,0 +1,479 @@
+﻿var gbl_metadata_icon_click = false;
+
+$(function () {
+    //the function needs to be trigger only during initial page load
+    //otherwise the init will call from end request of page request manager
+    if (gbl_prm._postBackSettings == null)
+        initTableOptions();
+});
+
+function initTableOptions() {
+    //binding all events
+    $('.colCanvas').resize(function () {
+        //Looks like window resize event getting triggered on the canvas div resize. 
+        //so avoid writing anything here now
+    });
+
+    $("#customorientation-sortable-list").removeClass().sortable({
+        update: function (event, ui) {
+            showOptionsChanged();
+        }
+    });
+
+    $("#btnFormatSeries").off('click');
+    $("#btnFormatSeries").on('click', function () {
+        buildFormatSeriesTable();
+    });
+
+    setCallbackOptions(null, null);
+
+    if (typeof (initTableOptionsAdvanced) == typeof (Function)) initTableOptionsAdvanced();
+
+    //finally set the values for controls
+    setTableOptions();
+
+    setTableSize();
+}
+
+function setTableSize() {
+    if (typeof (grid) == 'undefined') return;
+
+    var rpt_elem_height = $('.viewToggler').height() + $('.addRemoveVariables').height() + $('#upReportDD').height() + 40;
+    var rpt_hdr_note_height = $('#divReportHeader').height() + $('#divReportNotes').height() + $('#divReportFooter').height() + $('#divReportSource').height();
+
+    $("#tableView").height($(window).height() - (getHeaderFooterHeight() + rpt_elem_height));
+    var tablemaxheight = $("#tableView").height() - rpt_hdr_note_height;
+    var tableactualheight = $('#grdTableView_DXMainTable').height() + $('#grdTableView div.dxgvHSDC').height() + $('#grdTableView div.dxgvFCSD').height() + 10;
+
+    if ($('#grdTableView').size() > 0) {
+        //to avoid the extra space between the scroll and table
+        if (tableactualheight > tablemaxheight)
+            grid.SetHeight(tablemaxheight);
+        else
+            grid.SetHeight(tableactualheight);
+
+        //Setwidth method not workign as expected
+        //hence setting the width of individual elements
+        //grid.SetWidth($("#tableView").width());
+        //console.log($("#tableView").width());
+
+        var scrollwidth = 15;
+        $('#grdTableView').width($("#tableView").width() - (scrollwidth * 1));
+        $('#grdTableView div.dxgvHSDC div').width($("#tableView").width() - (scrollwidth * 2));
+        $('#grdTableView div.dxgvCSD').width($("#tableView").width() - (scrollwidth * 1));
+        $('#grdTableView div.dxgvFCSD').width($("#tableView").width() - (scrollwidth * 2));
+    }
+}
+
+function onResetClick() {
+    setTableOptions();
+
+    return true;
+}
+
+function clearPopups() {
+    if (!$('#formatSeries').hasClass('collapse')) $('#btnFormatSeries').trigger('click');
+
+    if ((typeof (clearAdvancedPopups) == typeof (Function))) {
+        clearAdvancedPopups();
+    }
+}
+
+function resizeTable() {
+//    var w = $('.main-body').width(); //20 to reduce the padding
+
+//    $('#MainContent_grdTableView').width(w);
+//    $('#MainContent_grdTableView_DXMainTable').parent().width(w);
+
+//    var w = $('#MainContent_grdTableView_DXMainTable').parent().width() - 18;
+//    $('#MainContent_grdTableView_DXHeaderTable').parent().width(w).parent().width(w);
+//    $('#MainContent_grdTableView_DXFixedColumnsDiv').width(w);
+}
+
+function setCallbackOptions(s, e) {
+    $('.metadata-column-cell').off('mousedown');
+    $('.metadata-column-cell').on('mousedown', function () { gbl_metadata_icon_click = true; });
+
+    if (typeof (setCallbackOptionsAdvanced) == typeof (Function)) setCallbackOptionsAdvanced();
+
+    setTableSize();
+}
+
+function setColumnSortingOptions(s, e) {
+    if (gbl_metadata_icon_click) {
+        e.cancel = true;
+        gbl_metadata_icon_click = false;
+    }
+}
+
+function setTableOptions() {
+    var strOptions = $('#hdnReportOptionsCur').val();
+    if (strOptions != '') {
+        strOptions = $.parseJSON(strOptions);
+        if (strOptions.IsOrientationTemplate) {
+            setActiveTab("#liOrienationPopular", "#tablePopularOrientation");
+            $('#rb_template_orientation' + strOptions.SelectedOrientation).trigger('click');
+        }
+        else {
+            setActiveTab("#liOrienationCustom", "#tableCustomOrientation");
+        }
+
+        //setting the custom orientation everytime in order to sync with current orientation
+        $.each(strOptions.OrientationCustom, function (index, value) {
+            $("#custom-orientation-" + value.dimensionId + ' option[value="' + value.dimensionAxis + '"]').prop('selected', true);
+        });
+
+        $('#row' + strOptions.NoOfRowsPerPage).trigger('click');
+        $('#chkShowNotes').prop({ checked: (strOptions.ShowNotes) });
+        $('#ddlNAPref').val(strOptions.EmptyFormat);
+        if (strOptions.ReportLevelScale) {
+            $('#ddlScale').val(strOptions.Scale);
+            $('#ddlPrecision').val(strOptions.Precision);
+        }
+        else {
+            $('#ddlScale').val("..");
+            $('#ddlPrecision').val("..");
+        }
+        $('#chkCommaSep').prop({ checked: (strOptions.ThousandSeparator) });
+        $('#txtReportHeader').val(strOptions.ReportHeader);
+        $('#txtReportFooter').val(strOptions.ReportFooter);
+        $('#txtReportNotes').val(strOptions.ReportNotes);
+
+        //to avoid any issues if the script loaded from databank and not from mydatabank
+        if (typeof (setTableOptionsAdvanced) == typeof (Function)) setTableOptionsAdvanced(strOptions);
+    }
+}
+
+function onUpdateTableOptionsClick() {
+    //debugger;
+    var ornCountCol = 0, ornCountRow = 0;
+    var ornCustom = [];
+
+    //custom orientation settints
+    if ($('#liOrienationCustom').hasClass('active')) {
+        $('.custom-orientation-ddl').each(function () {
+            var optSelected = $('option:selected', this).val();
+            ornCustom.push({ dimensionId: this.id.replace('custom-orientation-', ''), dimensionAxis: optSelected });
+            switch (optSelected) {
+                case "0":
+                    ornCountCol++;
+                    break;
+                case "1":
+                    ornCountRow++;
+                    break;
+            }
+        });
+        if (ornCountCol == 0 || ornCountRow == 0) {
+            alert('Please select atleast one dimension for Row/Column');
+            return false;
+        }
+    }
+
+    var advancedoptions = null;
+    if ((typeof (getTableOptionsAdvanced) == typeof (Function))) {
+        advancedoptions = getTableOptionsAdvanced();
+        //this is to check the validations for advanced options
+        //if validations failed return false
+        if (advancedoptions == null) return false;
+    }
+
+    //series scaling settings
+    var scaleValues = setSeriesScaling();
+
+    var objReportOptions = {
+        IsOrientationTemplate: $('#liOrienationPopular').hasClass('active'),
+        SelectedOrientation: $('#divTablePopularOrientation label.active input').prop('id').replace('rb_template_orientation', ''),
+        OrientationCustom: ornCustom,
+        NoOfRowsPerPage: $('#divRowsPerPage label.active input').prop('id').replace('row', ''),
+        ShowNotes: $('#chkShowNotes').prop('checked'),
+        EmptyFormat: $('#ddlNAPref').val(),
+        ReportLevelScale: ($('#ddlScale').val() != '..'),
+        Scale: ($('#ddlScale').val() != '..' ? $('#ddlScale').val() : ''),
+        Precision: ($('#ddlPrecision').val() != '..' ? $('#ddlPrecision').val() : ''),
+        SeriesScale: scaleValues.seriesscale,
+        SeriesPrecision: scaleValues.seriesprecision,
+        ThousandSeparator: $('#chkCommaSep').prop('checked'),
+        ReportHeader: $('#txtReportHeader').val(),
+        ReportFooter: $('#txtReportFooter').val(),
+        AdvancedOptions: advancedoptions,
+        ReportNotes: $('#txtReportNotes').val()
+    };
+
+    /*
+    chkClearSort - mostly the functionality will move to right click of grid
+    */
+    
+    $('#hdnReportOptionsNew').val(JSON.stringify(objReportOptions));
+
+    //to clear the format series, hide columns and comparator popups
+    clearPopups();
+
+    return true;
+}
+
+
+function showSortMenu(s, e) {
+
+    if ( e.objectType == "header") {
+        if ($(($.browser.msie ? e.htmlEvent.srcElement : e.htmlEvent.target)).hasClass('dxgvIndentCell')) return;
+
+        var x = ASPxClientUtils.GetEventX(e.htmlEvent);
+        var y = ASPxClientUtils.GetEventY(e.htmlEvent);
+        //To avoid some unnecessary line in the popup menu
+        //the below styles are inherited from default.css and changing that cause existing style of the table
+        $("#pMenuGrid_DXMST_").css("border-top-width", "0px").css("border-bottom-width", "0px").find("tr td:nth-child(2)").css("border-bottom-width", "0px");
+
+        var topheight = ($('#bannerStrip').height() + $('.secondaryHeader').height() + $('.language').height());
+        if ((y + $(pMenuGrid.mainElement).height()) > (getDisplayHeight() + topheight)) y = y - $(pMenuGrid.mainElement).height();
+        if ((x + $(pMenuGrid.mainElement).width()) > (getDisplayWidth() + $('#leftmainpanel').width())) x = x - $(pMenuGrid.mainElement).width();
+
+        pMenuGrid.ShowAtPos(x, y);
+    }
+}
+
+function getDisplayWidth() {
+    return $('#divReportContent').width();
+}
+
+function getDisplayHeight() {
+    var totalheight = 0;
+    totalheight += $('#divReportContent').height();
+    return totalheight;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////Advanced options////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+$(function () {
+
+});
+
+function initTableOptionsAdvanced() {
+    $('#ddlTableMRVFunc').on('change', function () {
+        var mrvfunction = $(this).val();
+        if (mrvfunction == 'NONE') {
+            $('#ddlTableMRVInt').prop('disabled', 'disabled');
+            $('#ddlTableMRVInt').val('0');
+        }
+        else {
+            $('#ddlTableMRVInt').prop('disabled', '');
+            if ($('#ddlTableMRVInt').val() == '0') $('#ddlTableMRVInt').val('1');
+        }
+    });
+
+    $("#btnHideColumns").off('click');
+    $("#btnHideColumns").on('click', function () {
+        buildHideColumns();
+    });
+
+    $("#btnComparatorReport").off('click');
+    $("#btnComparatorReport").on('click', function () {
+        buildComparatorTable();
+    });
+
+    $("#btn-createCustomTheme-table").off('click');
+    $("#btn-createCustomTheme-table").on('click', function () {
+        //debugger;
+        //Responsive template changes - start
+        TrackFeature("Styles->Template->Custom->Customize Report")
+        if ($('#hdnTemplateId').val() == 7) $('#hdnTemplateId').val("1");
+        //Responsive template changes - end
+
+        var originalSrc = gbl_embedpath + "CustomTableHolder.aspx?template=" + $('#hdnTemplateId').val();
+        if ($('#hdnTemplateId').val() > 2)
+            originalSrc = gbl_embedpath + "template_editor.aspx?template=" + $('#hdnTemplateId').val();
+        $("#customTableHolder").attr("src", "");
+        $("#customTableHolder").attr("src", originalSrc);
+    });
+
+    //Responsive template changes - start
+    if ($('#hdnTemplateId').val() == '7') {
+        $('#chkTemplateResponsive').prop({ checked: true });
+        $('#btn-createCustomTheme-table').attr('disabled', 'disabled');
+        setActiveTab("#liTemplateResponsive", "#tableResponsiveTemplate");
+    }
+    else {
+        if ($('#liTemplateCustom').length > 0)
+            setActiveTab("#liTemplateCustom", "#tableCustomTemplate");
+        else
+            setActiveTab("#liTemplateResponsive", "#tableResponsiveTemplate");
+    }
+    $('#chkTemplateResponsive').off('click');
+    $('#chkTemplateResponsive').on('click', function () {
+        TrackFeature("Styles->Template->Apply Responsive")
+        if ($('#chkTemplateResponsive').prop('checked')) {
+            $('#btn-createCustomTheme-table').attr('disabled', 'disabled');
+            $('#hdnTemplateId').val('7');
+        }
+        else {
+            $('#btn-createCustomTheme-table').removeAttr('disabled');
+            $('#hdnTemplateId').val('1');
+        }
+        var strdata = "{TemplateId:'" + $('#hdnTemplateId').val()+"',ThemeName:'Silver', ThemeID:'D1', ThemeCSS:''}";
+        var strURL = '//' + gbl_baseurl + "views/template_editor.aspx/SaveTableStyle_DDP";
+
+        $("#report-loading").fadeIn(200);
+        $.ajax({
+            type: "POST",
+            url: strURL,
+            contentType: "application/json; charset=utf-8",
+            data: strdata,
+            dataType: "json",
+            success: function (data) {
+                $("#report-loading").fadeOut(500);
+            },
+            error: function (XMLHttpRequest, textStatus, errorThrown) {
+                $("#report-loading").fadeOut(500);
+                window.location.href = '//' + gbl_baseurl + "ddperror.aspx";
+            }
+        });
+    });
+    //Responsive template changes - end
+
+    if (typeof (initCustomStyles) == typeof (Function)) initCustomStyles();
+}
+
+function closeCustomThemeDialog() {
+    $('#createCustomThemeModal').modal('hide');
+}
+
+function applyCustomThemeDialog(templateid) {
+    $('#hdnTemplateId').val(templateid);
+    $('#createCustomThemeModal').modal('hide');
+}
+
+
+function setCallbackOptionsAdvanced() {
+    if (typeof (doCustomizations) == typeof (Function)) doCustomizations();
+}
+
+function clearAdvancedPopups() {
+    if (!$('#hideColumns').hasClass('collapse')) $('#btnHideColumns').trigger('click');
+    if (!$('#comparatorReport').hasClass('collapse')) $('#btnComparatorReport').trigger('click');
+}
+
+function setTableOptionsAdvanced(options) {
+    $('#ddlTableHierarchy').val(options.AdvancedOptions.Hierarchy);
+    if (options.AdvancedOptions.RolloverDirection != null && options.AdvancedOptions.RolloverDirection != '')
+        $('#ddlTableMRVFunc').val(options.AdvancedOptions.RolloverDirection.toUpperCase());
+    else
+        $('#ddlTableMRVFunc').val('NONE');
+    if (options.AdvancedOptions.RolloverInterval != null && options.AdvancedOptions.RolloverInterval != '')
+        $('#ddlTableMRVInt').val(options.AdvancedOptions.RolloverInterval);
+    else
+        $('#ddlTableMRVInt').val('0');
+    $('#chkTableHideEmptyRow').prop('checked', options.AdvancedOptions.HideEmptyRow);
+    $('#chkTableHideEmptyCol').prop('checked', options.AdvancedOptions.HideEmptyColumn);
+}
+
+var hidecolumns = null;
+var comparatorselected = null;
+function getTableOptionsAdvanced() {
+    if (!getHideColumnSelected()) return null;
+    if (!getComparatorSelected()) return null;
+
+    var objROAdvanced = {
+        Hierarchy: $('#ddlTableHierarchy').val(),
+        RolloverDirection: $('#ddlTableMRVFunc').val(),
+        RolloverInterval: $('#ddlTableMRVInt').val(),
+        HideEmptyRow: $('#chkTableHideEmptyRow').prop('checked'),
+        HideEmptyColumn: $('#chkTableHideEmptyCol').prop('checked'),
+        HideColumns: hidecolumns,
+        Comparator: comparatorselected
+    };
+
+    return objROAdvanced;
+}
+
+function getHideColumnSelected() {
+    hidecolumns = null;
+
+    //this is to check if the hide columns is loaded or not. otherwise we should retain the previous selected.
+    //if loaded it should take the selected ones
+    var columncount = $('.adv-opt-hidecol-input').length;
+    if (columncount > 0) {
+        var selectedcount = $('.adv-opt-hidecol-input:checked').length;
+        if (columncount == selectedcount) {
+            alert('All the columns cannot be set as hidden.');
+            return false;
+        }
+
+        hidecolumns = '';
+        $('.adv-opt-hidecol-input:checked').each(function () {
+            if (hidecolumns != '') hidecolumns += ",";
+            hidecolumns += $(this).attr('data-index');
+        });
+    }
+
+    return true;
+}
+
+function getComparatorSelected() {
+    comparatorselected = null;
+
+    //this means comparator is loaded but everything is unselected
+    //null is to handle the case where comparator tab itself not loaded so use the previous selections
+    if ($('.comparator-table').length > 0) comparatorselected = '';
+
+    var retval = true;
+    $('.comparator-table').each(function () {
+        if ($(this).find('input:checked').length > 0) {
+
+            if ($(this).attr('value').toLowerCase() != 'classification' && $(this).find('input:checked').length == $(this).find('input').length) {
+                alert('Cannot select all items for a comparator');
+                retval = false;
+                return;
+            }
+
+            if ($(this).attr('value-axis') == '0' && hidecolumns != null && hidecolumns != '') {
+                alert('Comparator and Hide Columns cannot be set together');
+                retval = false;
+                return;
+            }
+
+            if (comparatorselected != '') comparatorselected += '~';
+            //for classification need to add the dimensionid as well, otherwise value is the dimensionid
+            if ($(this).attr('value').toLowerCase() == 'classification') comparatorselected += $(this).attr('value-dim') + '|';
+            comparatorselected += $(this).attr('value') + '|';
+            comparatorselected += $(this).find('input:checked').map(function () { return $(this).attr('data-value'); }).get().join('|');
+        }
+    });
+
+    return retval;
+}
+
+function buildHideColumns() {
+    if (!$('#hideColumns').hasClass('collapse')) return;
+
+    $('#report-loading').show();
+
+    $.ajax({
+        type: "POST",
+        async: false,
+        url: gbl_basepath + "AjaxServices/AjaxReportMethods.asmx/GetModalHideColumns",
+        contentType: "application/json; charset=utf-8",
+        data: "",
+        dataType: "html",
+        success: function (data) {
+            var JSONData = $.parseJSON(data).d;
+            $("#hideColumns").html(JSONData);
+
+            $('.adv-opt-hidecol-input').off('click');
+            $('.adv-opt-hidecol-input').on('click', function (e) {
+                if (e.button == null) return;
+
+                //debugger;
+                $(".selectionModifyTxt").show();
+                $("#faded").show();
+                if ($(".downloadMsg").is(":visible"))
+                    $(".downloadMsg").hide();
+            });
+        },
+        error: function (XMLHttpRequest, textStatus, errorThrown) {
+            window.location.href = "ddperror.aspx";
+        }
+    });
+
+    $('#report-loading').hide();
+}
+
