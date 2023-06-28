@@ -49,14 +49,6 @@ install.packages("mFilter")
 library(mFilter)
 
 
-## Handling missing values for each column, if any
-## df$gdp_growth <- na.omit(df$gdp_growth)
-## df$core_inflation <- na.omit(df$core_inflation)
-## df$Monetary_Policy_Rate <- na.omit(df$Monetary_Policy_Rate)
-## df$Headline_Inflation <- na.omit(df$Headline_Inflation)
-## df <- na.omit(df)
-
-
 if(is.null(df$gdp_growth)) print("gdp_growth is NULL")
 if(is.null(df$Monetary_Policy_Rate)) print("Monetary_Policy_Rate is NULL")
 if(is.null(df$Headline_Inflation)) print("Headline_Inflation is NULL")
@@ -81,7 +73,13 @@ df_hp$Monetary_Policy_Rate_hp <- hpfilter(df$Monetary_Policy_Rate, freq = 129600
 df_hp$Headline_Inflation_hp <- hpfilter(df$Headline_Inflation, freq = 129600)$cycle
 
 show(df_hp)
-# convert your dataframe to a time series object
+library(dplyr)
+df_hp <- df_hp %>% 
+  dplyr::select(-"GDP_Growth", -"Monetary_Policy_Rate", -"Headline_Inflation")
+head(df_hp)
+print(df_hp)
+
+### convert your dataframe to a time series object
 start_year <- year(min(df$Date))
 start_month <- month(min(df$Date))
 
@@ -100,14 +98,6 @@ for (col in colnames(ts_data)){
   print(adf.test(ts_data[, col], alternative = "stationary"))
 }
 
-# Differencing the data
-ts_data_diff <- diff(ts_data)
-
-# ADF tests after differencing
-for(col in colnames(ts_data_diff)){
-  print(col)
-  print(adf.test(ts_data_diff[,col], alternative = "stationary"))
-}
 # install and load the caret package
 if (!require(caret)) install.packages('caret')
 library(caret)
@@ -123,19 +113,19 @@ if (!require(car)) install.packages('car')
 library(car)
 
 # compute the VIF
-vif_values <- vif(lm(GDP_Growth ~., data = df_hp_no_date))
+vif_values <- vif(lm(GDP_Growth_hp ~., data = df_hp_no_date))
 
 # print the VIF values
 print(vif_values)
 
 # Building the VAR model
-var_model <- VAR(ts_data_diff, lag.max = 2, type = "const")
+var_model <- VAR(ts_data, lag.max = 3, type = "const")
 
 # Print results
 print(summary(var_model))
 
 # Assuming var_model is the estimated VAR model
-irf_result <- irf(var_model, impulse = "Monetary_Policy_Rate", response = c("GDP_Growth", "Headline_Inflation"), n.ahead = 10)
+irf_result <- irf(var_model, impulse = "Monetary_Policy_Rate_hp", response = c("GDP_Growth_hp", "Headline_Inflation_hp"), n.ahead = 10)
 
 # Print the impulse response functions
 print(irf_result)
