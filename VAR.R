@@ -134,7 +134,12 @@ var_model <- VAR(ts_data_diff, lag.max = 2, type = "const")
 # Print results
 print(summary(var_model))
 
+# Assuming var_model is the estimated VAR model
+irf_result <- irf(var_model, impulse = "Monetary_Policy_Rate", response = c("GDP_Growth", "Headline_Inflation"), n.ahead = 10)
 
+# Print the impulse response functions
+print(irf_result)
+plot(irf_result)
 
 
 
@@ -204,9 +209,7 @@ print(summary(var_model))
 
 
 
-
-
-
+## ------------------------------------------------------------------
 # convert your dataframe to a time series object
 # ts_data <- ts(df_hp)
 #start_year <- year(min(df$Date))
