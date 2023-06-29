@@ -44,7 +44,7 @@ ggplot(data = plot_data, aes(x = Year, y = value, group = series),) +
   facet_wrap(~ series, scales = "free")
 
 # M3/GDP vs log GDP Growth
-reg1 = lm(df$M3_Supply_of_GDP ~ df$log_GDP_Growth + 0)
+reg1 = lm(df$M3_Supply_of_GDP ~ df$log_GDP_Growth)
 summary(reg1)
 beta1 = reg1$coefficients['df$log_GDP_Growth']
 plot1 <- ggplot(select(df, M3_Supply_of_GDP, log_GDP_Growth), 
@@ -55,7 +55,7 @@ plot1 <- ggplot(select(df, M3_Supply_of_GDP, log_GDP_Growth),
 
 
 # M3/GDP vs log GDP/Worker
-reg2 = lm(df$M3_Supply_of_GDP ~ df$log_GDP_per_Worker + 0)
+reg2 = lm(df$M3_Supply_of_GDP ~ df$log_GDP_per_Worker)
 summary(reg2)
 beta2 = reg2$coefficients['df$log_GDP_per_Worker']
 plot2 <- ggplot(select(df, M3_Supply_of_GDP, log_GDP_per_Worker), 
@@ -65,7 +65,7 @@ plot2 <- ggplot(select(df, M3_Supply_of_GDP, log_GDP_per_Worker),
               level = 0.99)
 
 # M3/GDP vs log Labor Force
-reg3 = lm(df$M3_Supply_of_GDP ~ df$log_Labor_Force + 0)
+reg3 = lm(df$M3_Supply_of_GDP ~ df$log_Labor_Force)
 summary(reg3)
 beta3 = reg3$coefficients['df$log_Labor_Force']
 plot3 <- ggplot(select(df, M3_Supply_of_GDP, log_Labor_Force), 
@@ -75,7 +75,7 @@ plot3 <- ggplot(select(df, M3_Supply_of_GDP, log_Labor_Force),
               level = 0.99)
 
 # M3/GDP vs log CPI
-reg4 = lm(df$M3_Supply_of_GDP ~ df$log_CPI + 0)
+reg4 = lm(df$M3_Supply_of_GDP ~ df$log_CPI)
 summary(reg4)
 beta4 = reg4$coefficients['df$log_CPI']
 plot4 <- ggplot(select(df, M3_Supply_of_GDP, log_CPI), 
@@ -85,3 +85,8 @@ plot4 <- ggplot(select(df, M3_Supply_of_GDP, log_CPI),
               level = 0.99)
 
 grid.arrange(`plot1`, `plot2`, `plot3`, `plot4`, nrow=2)
+message(paste(c("coefficients:", 
+                "\nGDP Growth: ", beta1, 
+                ", GDP per Worker: ", beta2,
+                ", Labor Force: ", beta3, 
+                ", CPI: ", beta4), collapse=""))
