@@ -13,7 +13,8 @@ d = {"Year" : [],
      "GDP growth (annual %)" : [],
      "GDP per person employed (constant 2017 PPP $)" : [],
      "Broad money (% of GDP)" : [],
-     "Labor force, total" : []}
+     "Labor force, total" : [],
+     "Consumer price index (2010 = 100)": []}
 years = soup.find("tr", id="grdTableView_DXHeadersRow0")
 for element in years.find_all("td")[-1:0:-2]:
     print(element)
